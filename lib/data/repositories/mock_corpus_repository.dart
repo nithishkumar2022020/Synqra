@@ -59,6 +59,7 @@ class MockCorpusRepository implements ICorpusRepository {
     String? filePath,
     List<int>? bytes,
     String? apiKey,
+    bool? semanticChunking,
   }) {
     return simulateUpload(
       filename: filename,
@@ -88,6 +89,35 @@ class MockCorpusRepository implements ICorpusRepository {
 
     _documents.insert(0, newDoc);
     return newDoc;
+  }
+
+  @override
+  Future<Map<String, dynamic>> checkIngestionStatus({
+    required String documentsUrl,
+    required String jobId,
+    String? apiKey,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return {
+      'job_id': jobId,
+      'document_id': 'doc_$jobId',
+      'filename': 'mock_doc.pdf',
+      'status': 'completed',
+      'chunks': 12,
+    };
+  }
+
+  @override
+  Future<void> updateDocument(DocumentEntry entry) async {
+    final idx = _documents.indexWhere(
+      (d) =>
+          d.id == entry.id || (entry.jobId != null && d.jobId == entry.jobId),
+    );
+    if (idx != -1) {
+      _documents[idx] = entry;
+    } else {
+      _documents.insert(0, entry);
+    }
   }
 
   @override

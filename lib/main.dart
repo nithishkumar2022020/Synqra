@@ -18,17 +18,17 @@ import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/telemetry_provider.dart';
 import 'presentation/screens/archival_splash_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (_) {
+  // Initialize Firebase asynchronously in the background so it never blocks the first frame
+  Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  ).catchError((_) {
     // Graceful initialization fallback for local/offline testing
-  }
+    return Firebase.app();
+  });
 
   final IRagStreamRepository ragStreamRepo = RagStreamRepository();
   final ICorpusRepository corpusRepo = CorpusRepository();

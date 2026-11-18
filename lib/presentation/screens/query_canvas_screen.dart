@@ -46,14 +46,19 @@ class _QueryCanvasScreenState extends State<QueryCanvasScreen>
     }
   }
 
-  void _handleSend() {
+  Future<void> _handleSend() async {
     final text = _promptController.text.trim();
     if (text.isEmpty) return;
 
     final ragSession = context.read<RagSessionProvider>();
-    final settings = context.read<SettingsProvider>().settings;
-    final selectedDocIds =
-        context.read<CorpusProvider>().selectedDocumentIds.toList();
+    final settingsProv = context.read<SettingsProvider>();
+    final corpusProv = context.read<CorpusProvider>();
+    final selectedDocIds = corpusProv.selectedDocumentIds.toList();
+
+    await settingsProv.getValidAccessToken();
+    if (!mounted) return;
+
+    final settings = settingsProv.settings;
 
     ragSession.submitQuery(
       text,

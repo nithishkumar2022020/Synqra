@@ -162,5 +162,175 @@ void main() {
         );
       },
     );
+
+    test('sends semantic_chunking field in multipart request', () async {
+      String? capturedBody;
+
+      final mockClient = MockClient.streaming((request, bodyStream) async {
+        final bodyBytes = await bodyStream.toBytes();
+        capturedBody = utf8.decode(bodyBytes, allowMalformed: true);
+        return http.StreamedResponse(
+          Stream.value(
+            utf8.encode(
+              jsonEncode({
+                'document_id': 'doc_semantic',
+                'filename': 'semantic.pdf',
+                'chunks': 8,
+              }),
+            ),
+          ),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final repo = CorpusRepository(client: mockClient);
+
+      // 1. Semantic chunking = true
+      await repo.uploadDocument(
+        filename: 'semantic.pdf',
+        documentsUrl: 'http://localhost:8000/documents',
+        bytes: [1, 2, 3],
+        semanticChunking: true,
+      );
+      expect(capturedBody, contains('name="semantic_chunking"'));
+      expect(capturedBody, contains('true'));
+
+      // 2. Semantic chunking = false
+      await repo.uploadDocument(
+        filename: 'fixed.pdf',
+        documentsUrl: 'http://localhost:8000/documents',
+        bytes: [1, 2, 3],
+        semanticChunking: false,
+      );
+      expect(capturedBody, contains('name="semantic_chunking"'));
+      expect(capturedBody, contains('false'));
+    });
+
+    test(
+      'handles 202 Accepted response with job_id and indexing status',
+      () async {
+        final mockClient = MockClient.streaming((request, bodyStream) async {
+          await bodyStream.drain<void>();
+          return http.StreamedResponse(
+            Stream.value(
+              utf8.encode(
+                jsonEncode({
+                  'job_id': 'job_async_123',
+                  'document_id': 'doc_async_456',
+                  'filename': 'async_report.pdf',
+                  'status': 'queued',
+                }),
+              ),
+            ),
+            202,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final repo = CorpusRepository(client: mockClient);
+        final entry = await repo.uploadDocument(
+          filename: 'async_report.pdf',
+          documentsUrl: 'http://localhost:8000/documents',
+          bytes: [1, 2, 3],
+        );
+
+        expect(entry.id, 'doc_async_456');
+        expect(entry.jobId, 'job_async_123');
+        expect(entry.status, IngestionStatus.indexing);
+        expect(entry.chunkCount, 0);
+      },
+    );
+
+    test(
+      'suppresses masked password placeholder keys (******) from Authorization header',
+      () async {
+        String? capturedAuth;
+        final mockClient = MockClient.streaming((request, bodyStream) async {
+          capturedAuth = request.headers['Authorization'];
+          await bodyStream.drain<void>();
+          return http.StreamedResponse(
+            Stream.value(
+              utf8.encode(
+                jsonEncode({
+                  'document_id': 'doc_mask',
+                  'filename': 'test.pdf',
+                  'chunks': 2,
+                }),
+              ),
+            ),
+            200,
+          );
+        });
+
+        final repo = CorpusRepository(client: mockClient);
+        await repo.uploadDocument(
+          filename: 'test.pdf',
+          documentsUrl: 'http://localhost:8000/documents',
+          bytes: [1, 2],
+          apiKey: '******',
+        );
+
+        expect(capturedAuth, isNull);
+      },
+    );
+
+    test('checkIngestionStatus performs GET /documents/{job_id}', () async {
+      late http.Request capturedReq;
+      final mockClient = MockClient.streaming((request, bodyStream) async {
+        capturedReq = request as http.Request;
+        await bodyStream.drain<void>();
+        return http.StreamedResponse(
+          Stream.value(
+            utf8.encode(
+              jsonEncode({
+                'job_id': 'job_777',
+                'document_id': 'doc_777',
+                'filename': 'poll.pdf',
+                'status': 'completed',
+                'chunks': 42,
+              }),
+            ),
+          ),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final repo = CorpusRepository(client: mockClient);
+      final result = await repo.checkIngestionStatus(
+        documentsUrl: 'http://localhost:8000/documents',
+        jobId: 'job_777',
+      );
+
+      expect(capturedReq.method, 'GET');
+      expect(
+        capturedReq.url.toString(),
+        'http://localhost:8000/documents/job_777',
+      );
+      expect(result['status'], 'completed');
+      expect(result['chunks'], 42);
+    });
+  });
+
+  group('CorpusProvider Semantic Chunking Control', () {
+    test('toggles and persists semantic chunking preference', () async {
+      final mockRepo = CorpusRepository();
+      final provider = CorpusProvider(repository: mockRepo);
+
+      // Default should be true
+      expect(provider.useSemanticChunking, isTrue);
+
+      // Toggle to false
+      await provider.setSemanticChunking(false);
+      expect(provider.useSemanticChunking, isFalse);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('rag_pref_semantic_chunking'), isFalse);
+
+      // Toggle back to true
+      provider.toggleSemanticChunking();
+      expect(provider.useSemanticChunking, isTrue);
+    });
   });
 }

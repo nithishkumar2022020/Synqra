@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/smooth_page_route.dart';
 import '../../data/repositories/mock_graph_repository.dart';
 import '../../domain/models/knowledge_graph.dart';
+import '../../domain/models/profile_settings.dart';
 import '../providers/settings_provider.dart';
 import '../providers/telemetry_provider.dart';
 import '../widgets/brutalist_container.dart';
@@ -22,6 +23,9 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
   KnowledgeGraphData? _graphData;
   late TextEditingController _apiKeyController;
   late TextEditingController _sseUrlController;
+  late TextEditingController _cognitoRegionController;
+  late TextEditingController _cognitoPoolIdController;
+  late TextEditingController _cognitoClientIdController;
 
   @override
   bool get wantKeepAlive => true;
@@ -31,6 +35,9 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
     super.initState();
     _apiKeyController = TextEditingController();
     _sseUrlController = TextEditingController();
+    _cognitoRegionController = TextEditingController();
+    _cognitoPoolIdController = TextEditingController();
+    _cognitoClientIdController = TextEditingController();
     _loadGraph();
   }
 
@@ -44,12 +51,25 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
     if (_sseUrlController.text.isEmpty) {
       _sseUrlController.text = settings.sseEndpoint;
     }
+    final cognitoConfig = context.read<SettingsProvider>().cognitoConfig;
+    if (_cognitoRegionController.text.isEmpty) {
+      _cognitoRegionController.text = cognitoConfig.region;
+    }
+    if (_cognitoPoolIdController.text.isEmpty) {
+      _cognitoPoolIdController.text = cognitoConfig.userPoolId;
+    }
+    if (_cognitoClientIdController.text.isEmpty) {
+      _cognitoClientIdController.text = cognitoConfig.appClientId;
+    }
   }
 
   @override
   void dispose() {
     _apiKeyController.dispose();
     _sseUrlController.dispose();
+    _cognitoRegionController.dispose();
+    _cognitoPoolIdController.dispose();
+    _cognitoClientIdController.dispose();
     super.dispose();
   }
 
@@ -479,9 +499,128 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                             ),
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _sseUrlController.text =
+                                      ProfileSettings.ec2Endpoint;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: vermilion),
+                                  color: surfaceColor,
+                                ),
+                                child: Text(
+                                  'EC2 LIVE (32.236.134.203)',
+                                  style: AppTheme.monospace(
+                                    color: vermilion,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _sseUrlController.text =
+                                      ProfileSettings.localEndpoint;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: borderColor),
+                                  color: surfaceColor,
+                                ),
+                                child: Text(
+                                  'LOCAL (ADB)',
+                                  style: AppTheme.monospace(
+                                    color: textColor,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _sseUrlController.text =
+                                      'http://192.168.1.100:8000/questions/stream';
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: borderColor),
+                                  color: surfaceColor,
+                                ),
+                                child: Text(
+                                  'LAN (WI-FI)',
+                                  style: AppTheme.monospace(
+                                    color: mutedText,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _sseUrlController.text =
+                                      ProfileSettings.productionEndpoint;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: borderColor),
+                                  color: surfaceColor,
+                                ),
+                                child: Text(
+                                  'PROD (HTTPS)',
+                                  style: AppTheme.monospace(
+                                    color: mutedText,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Note: Production requires HTTPS domain (ATS/CORS). For physical Pixel on localhost, run adb reverse tcp:8000 tcp:8000.',
+                          style: AppTheme.monospace(
+                            color: mutedText,
+                            fontSize: 9,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Text(
-                          'API AUTH TOKEN (OPTIONAL)',
+                          'BACKEND AUTH BEARER TOKEN (OPTIONAL)',
                           style: AppTheme.monospace(
                             color: mutedText,
                             fontSize: 10,
@@ -501,7 +640,16 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                             decoration: const InputDecoration(
                               border: InputBorder.none,
                               isDense: true,
+                              hintText: 'Leave blank if unauthenticated',
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Application Bearer token only. Server env maintains Gemini API keys; never enter raw Gemini keys in mobile client.',
+                          style: AppTheme.monospace(
+                            color: mutedText,
+                            fontSize: 9,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -537,10 +685,18 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                         GestureDetector(
                           onTap: () {
                             final prov = context.read<SettingsProvider>();
+                            final rawKey = _apiKeyController.text.trim();
+                            final sanitizedKey =
+                                RegExp(r'^[\*•\s]+$').hasMatch(rawKey)
+                                    ? ''
+                                    : rawKey;
+                            if (sanitizedKey != rawKey) {
+                              _apiKeyController.text = sanitizedKey;
+                            }
                             prov.updateSettings(
                               prov.settings.copyWith(
                                 sseEndpoint: _sseUrlController.text.trim(),
-                                apiKey: _apiKeyController.text.trim(),
+                                apiKey: sanitizedKey,
                               ),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -562,6 +718,238 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                             color: vermilion,
                             child: Text(
                               'PERSIST CONFIGURATION',
+                              style: AppTheme.monospace(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // AWS Cognito Configuration Card
+                  Text(
+                    'AWS COGNITO IDENTITY FEDERATION',
+                    style: AppTheme.monospace(
+                      color: mutedText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  BrutalistContainer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Consumer<SettingsProvider>(
+                          builder: (context, prov, _) {
+                            final session = prov.cognitoSession;
+                            final isLive =
+                                session != null && !session.isExpired;
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'COGNITO SESSION STATUS',
+                                  style: AppTheme.monospace(
+                                    color: mutedText,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  color:
+                                      isLive
+                                          ? (isDark
+                                                  ? AppTheme.nocturneSage
+                                                  : AppTheme.parchmentSage)
+                                              .withValues(alpha: 0.25)
+                                          : vermilion.withValues(alpha: 0.15),
+                                  child: Text(
+                                    isLive
+                                        ? 'ACTIVE JWT SESSION'
+                                        : 'UNAUTHENTICATED',
+                                    style: AppTheme.monospace(
+                                      color:
+                                          isLive
+                                              ? (isDark
+                                                  ? AppTheme.nocturneSage
+                                                  : AppTheme.parchmentSage)
+                                              : vermilion,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'AWS REGION',
+                          style: AppTheme.monospace(
+                            color: mutedText,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          color: surfaceColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: TextField(
+                            controller: _cognitoRegionController,
+                            style: AppTheme.monospace(
+                              color: textColor,
+                              fontSize: 12,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                              hintText: 'e.g. ap-southeast-2',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _cognitoRegionController.text =
+                                      'ap-southeast-2';
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Text(
+                                  'ap-southeast-2 (Sydney)',
+                                  style: AppTheme.monospace(
+                                    color: textColor,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _cognitoRegionController.text = 'us-east-1';
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: borderColor),
+                                ),
+                                child: Text(
+                                  'us-east-1 (N. Virginia)',
+                                  style: AppTheme.monospace(
+                                    color: mutedText,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'COGNITO USER POOL ID',
+                          style: AppTheme.monospace(
+                            color: mutedText,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          color: surfaceColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: TextField(
+                            controller: _cognitoPoolIdController,
+                            style: AppTheme.monospace(
+                              color: textColor,
+                              fontSize: 12,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                              hintText: 'e.g. ap-southeast-2_xxxxxxxxx',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'COGNITO APP CLIENT ID',
+                          style: AppTheme.monospace(
+                            color: mutedText,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          color: surfaceColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: TextField(
+                            controller: _cognitoClientIdController,
+                            style: AppTheme.monospace(
+                              color: textColor,
+                              fontSize: 12,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                              hintText: 'e.g. 27xxxxxxxxxxxxxxxxxxxxxxxx',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        GestureDetector(
+                          onTap: () {
+                            final prov = context.read<SettingsProvider>();
+                            final updatedConfig = prov.cognitoConfig.copyWith(
+                              region: _cognitoRegionController.text.trim(),
+                              userPoolId: _cognitoPoolIdController.text.trim(),
+                              appClientId:
+                                  _cognitoClientIdController.text.trim(),
+                            );
+                            prov.updateCognitoConfig(updatedConfig);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'AWS Cognito configuration persisted.',
+                                  style: AppTheme.monospace(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                backgroundColor: vermilion,
+                              ),
+                            );
+                          },
+                          child: Container(
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            color: vermilion,
+                            child: Text(
+                              'UPDATE COGNITO PARAMETERS',
                               style: AppTheme.monospace(
                                 color: Colors.white,
                                 fontSize: 11,

@@ -227,8 +227,39 @@ class UserProfileScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _buildLedgerRow(
+                        title: 'IDENTITY PROVIDER',
+                        value:
+                            isGuest
+                                ? 'Guest Bypass (Offline)'
+                                : 'AWS Cognito User Pools (RS256)',
+                        textColor: textColor,
+                        mutedText: mutedText,
+                        vermilion: vermilion,
+                      ),
+                      Divider(
+                        color: borderColor.withValues(alpha: 0.3),
+                        height: 18,
+                      ),
+                      _buildLedgerRow(
+                        title: 'COGNITO SESSION STATUS',
+                        value:
+                            settingsProv.cognitoSession != null &&
+                                    !settingsProv.cognitoSession!.isExpired
+                                ? 'VALID JWT ACCESS TOKEN'
+                                : (isGuest
+                                    ? 'LOCAL OBSERVER'
+                                    : 'SIGN-IN REQUIRED'),
+                        textColor: textColor,
+                        mutedText: mutedText,
+                        vermilion: vermilion,
+                      ),
+                      Divider(
+                        color: borderColor.withValues(alpha: 0.3),
+                        height: 18,
+                      ),
+                      _buildLedgerRow(
                         title: 'ASSIGNED LLM ENDPOINT',
-                        value: 'Claude 3.5 Sonnet / Local vLLM',
+                        value: 'Gemini 2.5 Flash / Fast RAG Hybrid',
                         textColor: textColor,
                         mutedText: mutedText,
                         vermilion: vermilion,
@@ -317,13 +348,12 @@ class UserProfileScreen extends StatelessWidget {
                   key: const Key('profile_revoke_session_btn'),
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
-                    await settingsProv.signOut();
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        SmoothPageRoute(page: const ClearanceAuthScreen()),
-                        (route) => false,
-                      );
-                    }
+                    final nav = Navigator.of(context);
+                    await settingsProv.signOut(clearBrowserSession: true);
+                    nav.pushAndRemoveUntil(
+                      SmoothPageRoute(page: const ClearanceAuthScreen()),
+                      (route) => false,
+                    );
                   },
                   child: BrutalistContainer(
                     backgroundColor: vermilion,

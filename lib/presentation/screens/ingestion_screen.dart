@@ -114,7 +114,10 @@ class _IngestionScreenState extends State<IngestionScreen>
     final corpus = context.read<CorpusProvider>();
     if (corpus.isUploading) return;
 
-    final settings = context.read<SettingsProvider>().settings;
+    final settingsProv = context.read<SettingsProvider>();
+    await settingsProv.getValidAccessToken();
+    if (!mounted) return;
+    final settings = settingsProv.settings;
 
     if (settings.useOfflineSimulation) {
       final doc = await corpus.uploadPdf(
@@ -157,10 +160,11 @@ class _IngestionScreenState extends State<IngestionScreen>
 
     if (!mounted) return;
     if (doc != null) {
+      final mode = corpus.useSemanticChunking ? 'semantic' : 'fixed-size';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Ingested "${doc.filename}" (${doc.chunkCount} chunks indexed).',
+            'Ingested "${doc.filename}" (${doc.chunkCount} chunks, $mode mode).',
             style: AppTheme.monospace(color: Colors.white, fontSize: 12),
           ),
           backgroundColor: vermilion,
@@ -288,7 +292,18 @@ class _IngestionScreenState extends State<IngestionScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+
+                  // Chunking Strategy Selector
+                  _buildChunkingStrategyCard(
+                    isDark: isDark,
+                    textColor: textColor,
+                    mutedText: mutedText,
+                    vermilion: vermilion,
+                    borderColor: borderColor,
+                    surfaceColor: surfaceColor,
+                  ),
+                  const SizedBox(height: 12),
 
                   // Actions row: Pick & Upload PDF
                   Row(
@@ -568,7 +583,43 @@ class _IngestionScreenState extends State<IngestionScreen>
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final doc = corpus.documents[index];
                       final isIndexed = doc.status == IngestionStatus.indexed;
+                      final isIndexing = doc.status == IngestionStatus.indexing;
+                      final isFailed = doc.status == IngestionStatus.failed;
                       final isSelected = corpus.isSelected(doc.id);
+
+                      final Color statusBg;
+                      final Color statusFg;
+                      final String statusLabel;
+
+                      if (isSelected) {
+                        statusBg = vermilion;
+                        statusFg = Colors.white;
+                        statusLabel = 'RAG ACTIVE';
+                      } else if (isIndexed) {
+                        statusBg = (isDark
+                                ? AppTheme.nocturneSage
+                                : AppTheme.parchmentSage)
+                            .withValues(alpha: 0.2);
+                        statusFg =
+                            isDark
+                                ? AppTheme.nocturneSage
+                                : AppTheme.parchmentSage;
+                        statusLabel = 'INDEXED';
+                      } else if (isFailed) {
+                        statusBg = vermilion.withValues(alpha: 0.2);
+                        statusFg = vermilion;
+                        statusLabel = 'FAILED';
+                      } else {
+                        statusBg = (isDark
+                                ? AppTheme.nocturneAmber
+                                : AppTheme.parchmentAmber)
+                            .withValues(alpha: 0.2);
+                        statusFg =
+                            isDark
+                                ? AppTheme.nocturneAmber
+                                : AppTheme.parchmentAmber;
+                        statusLabel = 'INDEXING';
+                      }
 
                       return Padding(
                         key: _keyForIndex(index),
@@ -641,43 +692,11 @@ class _IngestionScreenState extends State<IngestionScreen>
                                         horizontal: 6,
                                         vertical: 2,
                                       ),
-                                      color:
-                                          isSelected
-                                              ? vermilion
-                                              : (isIndexed
-                                                  ? (isDark
-                                                          ? AppTheme
-                                                              .nocturneSage
-                                                          : AppTheme
-                                                              .parchmentSage)
-                                                      .withValues(alpha: 0.2)
-                                                  : (isDark
-                                                          ? AppTheme
-                                                              .nocturneAmber
-                                                          : AppTheme
-                                                              .parchmentAmber)
-                                                      .withValues(alpha: 0.2)),
+                                      color: statusBg,
                                       child: Text(
-                                        isSelected
-                                            ? 'RAG ACTIVE'
-                                            : (isIndexed
-                                                ? 'INDEXED'
-                                                : 'INDEXING'),
+                                        statusLabel,
                                         style: AppTheme.monospace(
-                                          color:
-                                              isSelected
-                                                  ? Colors.white
-                                                  : (isIndexed
-                                                      ? (isDark
-                                                          ? AppTheme
-                                                              .nocturneSage
-                                                          : AppTheme
-                                                              .parchmentSage)
-                                                      : (isDark
-                                                          ? AppTheme
-                                                              .nocturneAmber
-                                                          : AppTheme
-                                                              .parchmentAmber)),
+                                          color: statusFg,
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -687,7 +706,7 @@ class _IngestionScreenState extends State<IngestionScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'FILE: ${doc.filename}  •  ID: ${doc.id}',
+                                  'FILE: ${doc.filename}  •  ID: ${doc.id}${doc.jobId != null ? '  •  JOB: ${doc.jobId}' : ''}',
                                   style: AppTheme.monospace(
                                     color: mutedText,
                                     fontSize: 10,
@@ -717,6 +736,50 @@ class _IngestionScreenState extends State<IngestionScreen>
                                     ],
                                   ],
                                 ),
+                                if (isIndexing) ...[
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.zero,
+                                    child: LinearProgressIndicator(
+                                      value:
+                                          doc.indexingProgress > 0
+                                              ? doc.indexingProgress
+                                              : null,
+                                      backgroundColor: borderColor.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        isDark
+                                            ? AppTheme.nocturneAmber
+                                            : AppTheme.parchmentAmber,
+                                      ),
+                                      minHeight: 3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'ASYNCHRONOUS INGESTION IN PROGRESS (${(doc.indexingProgress * 100).toInt()}%)',
+                                    style: AppTheme.monospace(
+                                      color:
+                                          isDark
+                                              ? AppTheme.nocturneAmber
+                                              : AppTheme.parchmentAmber,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                                if (isFailed) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'INGESTION ERROR: PARSING / VECTOR INDEX FAILED',
+                                    style: AppTheme.monospace(
+                                      color: vermilion,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -732,6 +795,208 @@ class _IngestionScreenState extends State<IngestionScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildChunkingStrategyCard({
+    required bool isDark,
+    required Color textColor,
+    required Color mutedText,
+    required Color vermilion,
+    required Color borderColor,
+    required Color surfaceColor,
+  }) {
+    return Consumer<CorpusProvider>(
+      builder: (context, corpus, _) {
+        final isSemantic = corpus.useSemanticChunking;
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: AppTheme.brutalistDecoration(
+            bgColor: surfaceColor,
+            borderColor: borderColor,
+            borderWidth: 1.5,
+            shadowOffset: const Offset(3, 3),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: isSemantic ? vermilion : mutedText,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'CHUNKING STRATEGY',
+                        style: AppTheme.monospace(
+                          color: textColor,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: (isSemantic
+                              ? vermilion
+                              : (isDark
+                                  ? AppTheme.nocturneAmber
+                                  : AppTheme.parchmentAmber))
+                          .withValues(alpha: 0.15),
+                      border: Border.all(
+                        color:
+                            isSemantic
+                                ? vermilion
+                                : (isDark
+                                    ? AppTheme.nocturneAmber
+                                    : AppTheme.parchmentAmber),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      isSemantic ? 'SEMANTIC // 1536-D' : 'FIXED // WINDOW',
+                      style: AppTheme.monospace(
+                        color:
+                            isSemantic
+                                ? vermilion
+                                : (isDark
+                                    ? AppTheme.nocturneAmber
+                                    : AppTheme.parchmentAmber),
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: borderColor, width: 1.5),
+                  color: isDark ? AppTheme.nocturneBg : AppTheme.parchmentBg,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        key: const Key('chunking_semantic_option'),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          corpus.setSemanticChunking(true);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSemantic ? vermilion : Colors.transparent,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.psychology,
+                                size: 14,
+                                color: isSemantic ? Colors.white : mutedText,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'SEMANTIC',
+                                style: AppTheme.monospace(
+                                  color: isSemantic ? Colors.white : textColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(width: 1.5, height: 32, color: borderColor),
+                    Expanded(
+                      child: GestureDetector(
+                        key: const Key('chunking_fixed_option'),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          corpus.setSemanticChunking(false);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color:
+                                !isSemantic
+                                    ? (isDark
+                                        ? AppTheme.nocturneBorder
+                                        : AppTheme.parchmentBorder)
+                                    : Colors.transparent,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.straighten,
+                                size: 14,
+                                color:
+                                    !isSemantic
+                                        ? (isDark
+                                            ? AppTheme.nocturneBg
+                                            : Colors.white)
+                                        : mutedText,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'FIXED-SIZE',
+                                style: AppTheme.monospace(
+                                  color:
+                                      !isSemantic
+                                          ? (isDark
+                                              ? AppTheme.nocturneBg
+                                              : Colors.white)
+                                          : textColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isSemantic
+                    ? '• Semantic mode: Inter-sentence Gemini embeddings for coherent, natural context boundaries.'
+                    : '• Fixed-size mode: Rapid token windows. Skips intermediate sentence embeddings for faster ingest.',
+                style: AppTheme.monospace(
+                  color: mutedText,
+                  fontSize: 9.5,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

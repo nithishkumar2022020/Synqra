@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Neo-Brutalist Hard Drop Shadow -->
+    <path
+        android:fillColor="#E6DFD5"
+        android:pathData="M24,24 h64 v64 h-64 z" />
+
+    <!-- Main Terminal Card Surface -->
+    <path
+        android:fillColor="#1C1A18"
+        android:pathData="M20,20 h64 v64 h-64 z" />
+
+    <!-- Terminal Card Border -->
+    <path
+        android:strokeColor="#E6DFD5"
+        android:strokeWidth="3.5"
+        android:strokeLineJoin="miter"
+        android:pathData="M20,20 h64 v64 h-64 z" />
+
+    <!-- Top Terminal Header Bar Line -->
+    <path
+        android:strokeColor="#E6DFD5"
+        android:strokeWidth="2"
+        android:pathData="M20,33 h64" />
+
+    <!-- Top Left Terminal Dot -->
+    <path
+        android:fillColor="#E04838"
+        android:pathData="M27,26.5 a2,2 0 1,0 0.001,0 z" />
+
+    <!-- Bold Vermilion Prompt Chevron (>) -->
+    <path
+        android:strokeColor="#E04838"
+        android:strokeWidth="5"
+        android:strokeLineCap="square"
+        android:strokeLineJoin="miter"
+        android:pathData="M35,43 L48,53 L35,63" />
+
+    <!-- Bold Vermilion Terminal Cursor Block (▌) -->
+    <path
+        android:fillColor="#E04838"
+        android:pathData="M55,43 h13 v20 h-13 z" />
+
+</vector>

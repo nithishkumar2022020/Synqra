@@ -187,7 +187,10 @@ void main() {
         expect(find.text('RAG SCOPE: 1 PDF SELECTED'), findsOneWidget);
 
         // Clear, then long-press on 1st card and slide down onto 3rd card
-        await tester.tap(find.byKey(const Key('corpus_clear_selection_btn')));
+        final clearBtn = find.byKey(const Key('corpus_clear_selection_btn'));
+        await tester.ensureVisible(clearBtn);
+        await tester.pumpAndSettle();
+        await tester.tap(clearBtn);
         await tester.pump();
         expect(corpusProv.selectedDocumentIds, isEmpty);
 
@@ -214,7 +217,10 @@ void main() {
         expect(find.text('RAG SCOPE: 3 PDFS SELECTED'), findsOneWidget);
 
         // Navigate to query screen via QUERY button and submit
-        await tester.tap(find.byKey(const Key('corpus_ask_selected_btn')));
+        final askBtn = find.byKey(const Key('corpus_ask_selected_btn'));
+        await tester.ensureVisible(askBtn);
+        await tester.pumpAndSettle();
+        await tester.tap(askBtn);
         await tester.pumpAndSettle();
 
         expect(find.textContaining('SCOPE: 3 PDFS'), findsOneWidget);

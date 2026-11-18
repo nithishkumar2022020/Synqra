@@ -1,13 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/corpus.dart';
 import '../../domain/repositories/i_corpus_repository.dart';
 
 class CorpusProvider extends ChangeNotifier {
+  static const _kSemanticChunkingPrefKey = 'rag_pref_semantic_chunking';
+
   final ICorpusRepository _repository;
   List<DocumentEntry> _documents = [];
   final Set<String> _selectedDocumentIds = {};
   bool _isLoading = false;
   bool _isUploading = false;
+  bool _useSemanticChunking = true;
   String? _error;
 
   CorpusProvider({required ICorpusRepository repository})
@@ -25,7 +29,22 @@ class CorpusProvider extends ChangeNotifier {
   bool get hasSelection => _selectedDocumentIds.isNotEmpty;
   bool get isLoading => _isLoading;
   bool get isUploading => _isUploading;
+  bool get useSemanticChunking => _useSemanticChunking;
   String? get error => _error;
+
+  Future<void> setSemanticChunking(bool value) async {
+    if (_useSemanticChunking == value) return;
+    _useSemanticChunking = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kSemanticChunkingPrefKey, value);
+    } catch (_) {}
+  }
+
+  void toggleSemanticChunking() {
+    setSemanticChunking(!_useSemanticChunking);
+  }
 
   void toggleSelection(String documentId) {
     if (_selectedDocumentIds.contains(documentId)) {
@@ -128,12 +147,134 @@ class CorpusProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.containsKey(_kSemanticChunkingPrefKey)) {
+        _useSemanticChunking = prefs.getBool(_kSemanticChunkingPrefKey) ?? true;
+      }
       _documents = await _repository.getCorpusManifest();
     } catch (e) {
       _error = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  final Map<String, bool> _activePollers = {};
+
+  Future<void> _pollIngestionJob({
+    required String jobId,
+    required String documentId,
+    required String documentsUrl,
+    String? apiKey,
+    int maxAttempts = 60,
+    Duration interval = const Duration(milliseconds: 1500),
+  }) async {
+    if (_activePollers[jobId] == true) return;
+    _activePollers[jobId] = true;
+
+    int attempts = 0;
+    try {
+      while (attempts < maxAttempts && _activePollers[jobId] == true) {
+        await Future.delayed(interval);
+        attempts++;
+
+        try {
+          final res = await _repository.checkIngestionStatus(
+            documentsUrl: documentsUrl,
+            jobId: jobId,
+            apiKey: apiKey,
+          );
+
+          final rawStatus = res['status']?.toString().toLowerCase();
+          final chunks =
+              res['chunks'] is int
+                  ? res['chunks'] as int
+                  : int.tryParse(res['chunks']?.toString() ?? '');
+
+          final targetIndex = _documents.indexWhere(
+            (d) => d.id == documentId || d.jobId == jobId,
+          );
+
+          if (targetIndex != -1) {
+            final existing = _documents[targetIndex];
+
+            if (rawStatus == 'completed') {
+              final updated = existing.copyWith(
+                status: IngestionStatus.indexed,
+                indexingProgress: 1.0,
+                chunkCount: chunks ?? existing.chunkCount,
+                updatedAt: DateTime.now(),
+              );
+              _documents[targetIndex] = updated;
+              await _repository.updateDocument(updated);
+              notifyListeners();
+              break;
+            } else if (rawStatus == 'failed') {
+              final detail =
+                  res['detail']?.toString() ?? 'Ingestion failed on backend';
+              final updated = existing.copyWith(
+                status: IngestionStatus.failed,
+                indexingProgress: 0.0,
+                updatedAt: DateTime.now(),
+              );
+              _documents[targetIndex] = updated;
+              _error = detail;
+              await _repository.updateDocument(updated);
+              notifyListeners();
+              break;
+            } else if (rawStatus == 'processing') {
+              final updated = existing.copyWith(
+                status: IngestionStatus.indexing,
+                indexingProgress: 0.65,
+              );
+              _documents[targetIndex] = updated;
+              notifyListeners();
+            } else {
+              // queued / pending
+              final updated = existing.copyWith(
+                status: IngestionStatus.indexing,
+                indexingProgress: 0.25,
+              );
+              _documents[targetIndex] = updated;
+              notifyListeners();
+            }
+          }
+        } catch (e) {
+          if (attempts >= maxAttempts) {
+            final targetIndex = _documents.indexWhere(
+              (d) => d.id == documentId || d.jobId == jobId,
+            );
+            if (targetIndex != -1) {
+              final existing = _documents[targetIndex];
+              final updated = existing.copyWith(
+                status: IngestionStatus.failed,
+                indexingProgress: 0.0,
+              );
+              _documents[targetIndex] = updated;
+              _error = 'Ingestion polling timed out: $e';
+              await _repository.updateDocument(updated);
+              notifyListeners();
+            }
+          }
+        }
+      }
+    } finally {
+      _activePollers.remove(jobId);
+    }
+  }
+
+  void resumePendingJobs(String endpointUrl, {String? apiKey}) {
+    final docsUrl = resolveDocumentsUrl(endpointUrl);
+    for (final doc in _documents) {
+      if (doc.status == IngestionStatus.indexing && doc.jobId != null) {
+        _pollIngestionJob(
+          jobId: doc.jobId!,
+          documentId: doc.id,
+          documentsUrl: docsUrl,
+          apiKey: apiKey,
+        );
+      }
     }
   }
 
@@ -144,6 +285,7 @@ class CorpusProvider extends ChangeNotifier {
     List<int>? bytes,
     String? apiKey,
     bool useOfflineSimulation = false,
+    bool? semanticChunking,
   }) async {
     _isUploading = true;
     _error = null;
@@ -164,9 +306,20 @@ class CorpusProvider extends ChangeNotifier {
           filePath: filePath,
           bytes: bytes,
           apiKey: apiKey,
+          semanticChunking: semanticChunking ?? _useSemanticChunking,
         );
       }
       _documents = [doc, ..._documents.where((d) => d.id != doc.id)];
+      notifyListeners();
+
+      if (doc.jobId != null && doc.status == IngestionStatus.indexing) {
+        _pollIngestionJob(
+          jobId: doc.jobId!,
+          documentId: doc.id,
+          documentsUrl: resolveDocumentsUrl(endpointUrl),
+          apiKey: apiKey,
+        );
+      }
       return doc;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');

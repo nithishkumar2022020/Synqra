@@ -25,6 +25,12 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
   final TextEditingController _researcherNameController = TextEditingController(
     text: 'Nithish R.',
   );
+  final TextEditingController _emailController = TextEditingController(
+    text: 'nithish@synqra.ai',
+  );
+  final TextEditingController _confirmationCodeController =
+      TextEditingController();
+
   String _selectedClearance = 'Level-3 Architect';
 
   final List<String> _clearanceLevels = const [
@@ -38,6 +44,8 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
     _callSignController.dispose();
     _passkeyController.dispose();
     _researcherNameController.dispose();
+    _emailController.dispose();
+    _confirmationCodeController.dispose();
     super.dispose();
   }
 
@@ -47,26 +55,179 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
     ).pushReplacement(SmoothPageRoute(page: const RootShellScreen()));
   }
 
-  void _handleAuthenticate() async {
+  Future<void> _handleManagedLogin() async {
     final settingsProv = context.read<SettingsProvider>();
+    settingsProv.clearAuthError();
 
+    final success = await settingsProv.signInWithManagedLogin();
+    if (!mounted) return;
+
+    if (success) {
+      _proceedToWorkspace();
+    }
+  }
+
+  Future<void> _handleAuthenticate() async {
+    final settingsProv = context.read<SettingsProvider>();
+    settingsProv.clearAuthError();
+
+    final bool success;
     if (_isSignUp) {
-      await settingsProv.signUp(
+      success = await settingsProv.signUp(
         researcherName: _researcherNameController.text.trim(),
         callSign: _callSignController.text.trim(),
         clearanceLevel: _selectedClearance,
         passkey: _passkeyController.text,
+        email: _emailController.text.trim(),
       );
     } else {
-      await settingsProv.signIn(
+      success = await settingsProv.signIn(
         callSign: _callSignController.text.trim(),
         passkey: _passkeyController.text,
       );
     }
 
-    if (mounted) {
+    if (!mounted) return;
+
+    if (success) {
       _proceedToWorkspace();
+    } else if (settingsProv.needsConfirmation) {
+      _showConfirmationDialog();
     }
+  }
+
+  void _showConfirmationDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppTheme.nocturneText : AppTheme.parchmentText;
+    final mutedText =
+        isDark ? AppTheme.nocturneMutedText : AppTheme.parchmentMutedText;
+    final vermilion =
+        isDark ? AppTheme.nocturneVermilion : AppTheme.parchmentVermilion;
+    final borderColor =
+        isDark ? AppTheme.nocturneBorder : AppTheme.parchmentBorder;
+    final surfaceColor =
+        isDark ? AppTheme.nocturneSurface : AppTheme.parchmentSurface;
+    final bg = isDark ? AppTheme.nocturneBg : AppTheme.parchmentBg;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final prov = context.watch<SettingsProvider>();
+
+            return AlertDialog(
+              backgroundColor: surfaceColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+                side: BorderSide(color: borderColor, width: 2),
+              ),
+              title: Text(
+                'AWS COGNITO VERIFICATION',
+                style: AppTheme.slabHeader(color: textColor, fontSize: 16),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A verification code has been dispatched by AWS Cognito for user [${prov.pendingUsername}]. Enter the 6-digit confirmation code below:',
+                    style: AppTheme.readingSerif(
+                      color: mutedText,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: bg,
+                      border: Border.all(color: borderColor, width: 1.5),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: TextField(
+                      key: const Key('input_cognito_confirmation_code'),
+                      controller: _confirmationCodeController,
+                      style: AppTheme.monospace(
+                        color: textColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'e.g. 123456',
+                        hintStyle: AppTheme.monospace(
+                          color: mutedText,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (prov.authError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      prov.authError!,
+                      style: AppTheme.monospace(color: vermilion, fontSize: 10),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    prov.resetConfirmationState();
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: Text(
+                    'CANCEL',
+                    style: AppTheme.monospace(color: mutedText, fontSize: 11),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await prov.resendConfirmationCode();
+                    setDialogState(() {});
+                  },
+                  child: Text(
+                    'RESEND CODE',
+                    style: AppTheme.monospace(color: vermilion, fontSize: 11),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    final navigator = Navigator.of(dialogContext);
+                    final confirmed = await prov.confirmSignUp(
+                      confirmationCode: _confirmationCodeController.text.trim(),
+                      passkeyToAutoSignIn: _passkeyController.text,
+                    );
+                    if (confirmed && mounted) {
+                      navigator.pop();
+                      _proceedToWorkspace();
+                    }
+                  },
+                  child: Container(
+                    color: vermilion,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'VERIFY & ENTER',
+                      style: AppTheme.monospace(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _handleGuestBypass() async {
@@ -111,7 +272,7 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
                     ),
                     color: vermilion,
                     child: Text(
-                      'RESTRICTED PROTOCOL',
+                      'RESTRICTED PROTOCOL // AWS COGNITO',
                       style: AppTheme.monospace(
                         color: Colors.white,
                         fontSize: 10,
@@ -160,24 +321,115 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Verify security credentials to access the 1536-D latent corpus and cross-attention synthesis matrix.',
-                style: AppTheme.readingSerif(color: mutedText, fontSize: 14),
+                'Identity verification powered by AWS Cognito User Pools. Authenticated RS256 Bearer access tokens are dispatched with all hybrid RAG streams and document uploads.',
+                style: AppTheme.readingSerif(color: mutedText, fontSize: 12),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // Tab Switcher between Sign In and Sign Up
+              // Cognito Managed Login CTA (Primary OAuth 2.0 PKCE Flow)
+              Consumer<SettingsProvider>(
+                builder: (context, prov, _) {
+                  final isBusy = prov.isAuthenticating;
+
+                  return GestureDetector(
+                    key: const Key('cognito_managed_login_btn'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: isBusy ? null : _handleManagedLogin,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      alignment: Alignment.center,
+                      decoration: AppTheme.brutalistDecoration(
+                        bgColor: vermilion,
+                        borderColor: borderColor,
+                        borderWidth: 2,
+                        shadowOffset: const Offset(4, 4),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isBusy) ...[
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'CONNECTING TO AWS COGNITO...',
+                              style: AppTheme.monospace(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ] else ...[
+                            const Icon(
+                              Icons.open_in_browser,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'SIGN IN WITH COGNITO MANAGED LOGIN',
+                              style: AppTheme.monospace(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: borderColor.withValues(alpha: 0.3),
+                      height: 1,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'OR USE DIRECT CLEARANCE FORM',
+                      style: AppTheme.monospace(color: mutedText, fontSize: 10),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: borderColor.withValues(alpha: 0.3),
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Tab Switcher: Sign In vs Sign Up
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
                       key: const Key('auth_tab_signin'),
-                      onTap: () => setState(() => _isSignUp = false),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        context.read<SettingsProvider>().clearAuthError();
+                        setState(() => _isSignUp = false);
+                      },
+                      child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: !_isSignUp ? surfaceColor : Colors.transparent,
+                          color: !_isSignUp ? surfaceColor : bg,
                           border: Border(
                             left: BorderSide(color: borderColor, width: 2),
                             top: BorderSide(color: borderColor, width: 2),
@@ -206,13 +458,15 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
                   Expanded(
                     child: GestureDetector(
                       key: const Key('auth_tab_signup'),
-                      onTap: () => setState(() => _isSignUp = true),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        context.read<SettingsProvider>().clearAuthError();
+                        setState(() => _isSignUp = true);
+                      },
+                      child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _isSignUp ? surfaceColor : Colors.transparent,
+                          color: _isSignUp ? surfaceColor : bg,
                           border: Border(
                             left: BorderSide(
                               color: borderColor,
@@ -262,6 +516,31 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Consumer<SettingsProvider>(
+                      builder: (context, prov, _) {
+                        if (prov.authError == null) {
+                          return const SizedBox.shrink();
+                        }
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: vermilion.withValues(alpha: 0.12),
+                            border: Border.all(color: vermilion, width: 1.5),
+                          ),
+                          child: Text(
+                            prov.authError!,
+                            style: AppTheme.monospace(
+                              color: vermilion,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
                     if (_isSignUp) ...[
                       Text(
                         'RESEARCHER DESIGNATION',
@@ -282,10 +561,30 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
                         bgColor: bg,
                       ),
                       const SizedBox(height: 14),
+
+                      Text(
+                        'COGNITO FIELD EMAIL',
+                        style: AppTheme.monospace(
+                          color: mutedText,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildTextField(
+                        key: const Key('input_email'),
+                        controller: _emailController,
+                        hint: 'e.g. researcher@synqra.ai',
+                        textColor: textColor,
+                        mutedText: mutedText,
+                        borderColor: borderColor,
+                        bgColor: bg,
+                      ),
+                      const SizedBox(height: 14),
                     ],
 
                     Text(
-                      'CALL SIGN / CLEARANCE ID',
+                      'CALL SIGN / CLEARANCE USERNAME',
                       style: AppTheme.monospace(
                         color: mutedText,
                         fontSize: 10,
@@ -373,39 +672,69 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
                     const SizedBox(height: 20),
 
                     // Authenticate & Enter Submit CTA
-                    GestureDetector(
-                      key: const Key('auth_submit_btn'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _handleAuthenticate,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        alignment: Alignment.center,
-                        decoration: AppTheme.brutalistDecoration(
-                          bgColor: vermilion,
-                          borderColor: borderColor,
-                          borderWidth: 2,
-                          shadowOffset: const Offset(4, 4),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.verified_user_outlined,
-                              color: Colors.white,
-                              size: 18,
+                    Consumer<SettingsProvider>(
+                      builder: (context, prov, _) {
+                        final isBusy = prov.isAuthenticating;
+
+                        return GestureDetector(
+                          key: const Key('auth_submit_btn'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: isBusy ? null : _handleAuthenticate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            alignment: Alignment.center,
+                            decoration: AppTheme.brutalistDecoration(
+                              bgColor: isBusy ? borderColor : vermilion,
+                              borderColor: borderColor,
+                              borderWidth: 2,
+                              shadowOffset: const Offset(4, 4),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'AUTHENTICATE & ENTER',
-                              style: AppTheme.monospace(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (isBusy) ...[
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'AUTHENTICATING WITH AWS COGNITO...',
+                                    style: AppTheme.monospace(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ] else ...[
+                                  const Icon(
+                                    Icons.verified_user_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _isSignUp
+                                        ? 'REGISTER IN COGNITO & PROCEED'
+                                        : 'AUTHENTICATE & ENTER',
+                                    style: AppTheme.monospace(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

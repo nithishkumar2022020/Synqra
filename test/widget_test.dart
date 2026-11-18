@@ -5,10 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_flutter_proj_dq/data/repositories/cognito_auth_repository.dart';
 import 'package:my_flutter_proj_dq/data/repositories/mock_corpus_repository.dart';
 import 'package:my_flutter_proj_dq/data/repositories/mock_telemetry_repository.dart';
 import 'package:my_flutter_proj_dq/data/repositories/profile_settings_repository.dart';
 import 'package:my_flutter_proj_dq/data/repositories/rag_stream_repository.dart';
+import 'package:my_flutter_proj_dq/domain/models/profile_settings.dart';
 import 'package:my_flutter_proj_dq/presentation/providers/corpus_provider.dart';
 import 'package:my_flutter_proj_dq/presentation/providers/rag_session_provider.dart';
 import 'package:my_flutter_proj_dq/presentation/providers/settings_provider.dart';
@@ -25,9 +27,24 @@ Widget createTestApp({
   http.Client? httpClient,
 }) {
   final settingsRepo = ProfileSettingsRepository();
-  final settingsProv = SettingsProvider(repository: settingsRepo);
+  final memoryStorage = <String, String>{};
+  final cognitoRepo = CognitoAuthRepository(
+    memoryStorageFallback: memoryStorage,
+    client: httpClient,
+  );
+  final settingsProv = SettingsProvider(
+    repository: settingsRepo,
+    cognitoRepository: cognitoRepo,
+  );
   if (startAuthenticated) {
-    settingsProv.signIn(callSign: 'ARCH-9942', passkey: 'secret');
+    settingsProv.updateSettings(
+      ProfileSettings.defaults().copyWith(
+        isAuthenticated: true,
+        callSign: 'ARCH-9942',
+        researcherName: 'Dr. Elena Rostova',
+        clearanceLevel: 'Level-4 Lead',
+      ),
+    );
   }
 
   final mockHttpClient =
@@ -347,7 +364,7 @@ void main() {
 
         // Scroll to sign out button and tap
         final signOutBtn = find.byKey(const Key('profile_revoke_session_btn'));
-        await tester.ensureVisible(signOutBtn);
+        await tester.scrollUntilVisible(signOutBtn, 200);
         await tester.pumpAndSettle();
         await tester.tap(signOutBtn);
         await tester.pumpAndSettle();

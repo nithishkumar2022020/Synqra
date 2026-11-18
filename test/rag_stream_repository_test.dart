@@ -88,6 +88,33 @@ void main() {
       },
     );
 
+    test(
+      'suppresses masked apiKey (******) and does not attach Authorization header',
+      () async {
+        late http.Request capturedRequest;
+        final mockClient = MockClient((request) async {
+          capturedRequest = request;
+          return http.Response(
+            jsonEncode({'answer': 'Safe answer.', 'citations': []}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final repository = RagStreamRepository(client: mockClient);
+        final events = <RagStreamEvent>[];
+        await for (final event in repository.queryStream(
+          'Sample prompt',
+          sseUrl: 'http://localhost:8000/questions',
+          apiKey: '******',
+        )) {
+          events.add(event);
+        }
+
+        expect(capturedRequest.headers.containsKey('Authorization'), false);
+      },
+    );
+
     test('HTTP error yields StreamErrorEvent with status details', () async {
       final mockClient = MockClient((request) async {
         return http.Response('Internal error', 500);

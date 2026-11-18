@@ -9,6 +9,7 @@ class DocumentEntry {
   final DateTime updatedAt;
   final IngestionStatus status;
   final double indexingProgress; // 0.0 to 1.0
+  final String? jobId;
 
   const DocumentEntry({
     required this.id,
@@ -19,6 +20,7 @@ class DocumentEntry {
     required this.updatedAt,
     required this.status,
     this.indexingProgress = 1.0,
+    this.jobId,
   });
 
   static String titleFromFilename(String filename) {
@@ -29,12 +31,32 @@ class DocumentEntry {
 
   factory DocumentEntry.fromJson(Map<String, dynamic> json) {
     final filename = json['filename']?.toString() ?? 'document.pdf';
-    final statusName =
-        json['status']?.toString() ?? IngestionStatus.indexed.name;
-    final parsedStatus = IngestionStatus.values.firstWhere(
-      (s) => s.name == statusName,
-      orElse: () => IngestionStatus.indexed,
-    );
+    final rawStatus = json['status']?.toString().toLowerCase() ?? 'indexed';
+    final IngestionStatus parsedStatus;
+    final double defaultProgress;
+
+    switch (rawStatus) {
+      case 'queued':
+      case 'pending':
+        parsedStatus = IngestionStatus.indexing;
+        defaultProgress = 0.15;
+        break;
+      case 'processing':
+      case 'indexing':
+        parsedStatus = IngestionStatus.indexing;
+        defaultProgress = 0.5;
+        break;
+      case 'failed':
+        parsedStatus = IngestionStatus.failed;
+        defaultProgress = 0.0;
+        break;
+      case 'completed':
+      case 'indexed':
+      default:
+        parsedStatus = IngestionStatus.indexed;
+        defaultProgress = 1.0;
+        break;
+    }
 
     return DocumentEntry(
       id: json['id']?.toString() ?? json['document_id']?.toString() ?? '',
@@ -55,7 +77,8 @@ class DocumentEntry {
       indexingProgress:
           (json['indexingProgress'] is num)
               ? (json['indexingProgress'] as num).toDouble()
-              : 1.0,
+              : defaultProgress,
+      jobId: json['job_id']?.toString() ?? json['jobId']?.toString(),
     );
   }
 
@@ -68,6 +91,7 @@ class DocumentEntry {
     'updatedAt': updatedAt.toIso8601String(),
     'status': status.name,
     'indexingProgress': indexingProgress,
+    if (jobId != null) 'jobId': jobId,
   };
 
   DocumentEntry copyWith({
@@ -79,6 +103,7 @@ class DocumentEntry {
     DateTime? updatedAt,
     IngestionStatus? status,
     double? indexingProgress,
+    String? jobId,
   }) {
     return DocumentEntry(
       id: id ?? this.id,
@@ -89,6 +114,7 @@ class DocumentEntry {
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       indexingProgress: indexingProgress ?? this.indexingProgress,
+      jobId: jobId ?? this.jobId,
     );
   }
 }

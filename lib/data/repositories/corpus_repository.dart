@@ -23,6 +23,15 @@ class CorpusRepository implements ICorpusRepository {
     return List.unmodifiable(_documents);
   }
 
+  static bool _isValidApiKey(String? key) {
+    if (key == null) return false;
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) return false;
+    // Block masked/placeholder keys like '******' or '••••••••'
+    if (RegExp(r'^[\*•\s]+$').hasMatch(trimmed)) return false;
+    return true;
+  }
+
   @override
   Future<DocumentEntry> uploadDocument({
     required String filename,
@@ -30,6 +39,7 @@ class CorpusRepository implements ICorpusRepository {
     String? filePath,
     List<int>? bytes,
     String? apiKey,
+    bool? semanticChunking,
   }) async {
     final targetUrl = documentsUrl.trim();
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
@@ -37,8 +47,12 @@ class CorpusRepository implements ICorpusRepository {
     }
 
     final request = http.MultipartRequest('POST', Uri.parse(targetUrl));
-    if (apiKey != null && apiKey.trim().isNotEmpty) {
-      request.headers['Authorization'] = 'Bearer ${apiKey.trim()}';
+    if (_isValidApiKey(apiKey)) {
+      request.headers['Authorization'] = 'Bearer ${apiKey!.trim()}';
+    }
+
+    if (semanticChunking != null) {
+      request.fields['semantic_chunking'] = semanticChunking ? 'true' : 'false';
     }
 
     if (bytes != null) {
@@ -69,8 +83,29 @@ class CorpusRepository implements ICorpusRepository {
 
         final docId =
             decoded['document_id']?.toString() ??
+            decoded['id']?.toString() ??
             'doc_${DateTime.now().millisecondsSinceEpoch}';
         final respFilename = decoded['filename']?.toString() ?? filename;
+        final rawStatus = decoded['status']?.toString().toLowerCase();
+        final jobId =
+            decoded['job_id']?.toString() ?? decoded['jobId']?.toString();
+
+        final bool isAsync =
+            streamed.statusCode == 202 ||
+            rawStatus == 'queued' ||
+            rawStatus == 'processing' ||
+            jobId != null;
+
+        final IngestionStatus status;
+        final double progress;
+        if (isAsync && rawStatus != 'completed' && rawStatus != 'indexed') {
+          status = IngestionStatus.indexing;
+          progress = rawStatus == 'processing' ? 0.5 : 0.15;
+        } else {
+          status = IngestionStatus.indexed;
+          progress = 1.0;
+        }
+
         final chunks =
             decoded['chunks'] is int
                 ? decoded['chunks'] as int
@@ -83,8 +118,9 @@ class CorpusRepository implements ICorpusRepository {
           chunkCount: chunks,
           sizeBytes: bytes?.length ?? 0,
           updatedAt: DateTime.now(),
-          status: IngestionStatus.indexed,
-          indexingProgress: 1.0,
+          status: status,
+          indexingProgress: progress,
+          jobId: jobId,
         );
 
         _documents = [entry, ..._documents.where((d) => d.id != entry.id)];
@@ -108,6 +144,72 @@ class CorpusRepository implements ICorpusRepository {
         client.close();
       }
     }
+  }
+
+  @override
+  Future<Map<String, dynamic>> checkIngestionStatus({
+    required String documentsUrl,
+    required String jobId,
+    String? apiKey,
+  }) async {
+    final cleanDocUrl = documentsUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final targetUrl = '$cleanDocUrl/$jobId';
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      throw Exception('Invalid documents URL: "$targetUrl"');
+    }
+
+    final request = http.Request('GET', Uri.parse(targetUrl));
+    if (_isValidApiKey(apiKey)) {
+      request.headers['Authorization'] = 'Bearer ${apiKey!.trim()}';
+    }
+    request.headers['Accept'] = 'application/json';
+
+    final client = _injectedClient ?? http.Client();
+    try {
+      final streamed = await client
+          .send(request)
+          .timeout(const Duration(seconds: 15));
+      final respBytes = await streamed.stream.toBytes();
+      final bodyStr = utf8.decode(respBytes, allowMalformed: true);
+
+      if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
+        final decoded = jsonDecode(bodyStr);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+        throw Exception('Unexpected response format from $targetUrl');
+      }
+
+      String detail = bodyStr;
+      try {
+        final errJson = jsonDecode(bodyStr);
+        if (errJson is Map && errJson['detail'] != null) {
+          detail = errJson['detail'].toString();
+        }
+      } catch (_) {}
+
+      throw Exception(
+        'HTTP ${streamed.statusCode}: ${detail.isNotEmpty ? detail : 'Status check failed'}',
+      );
+    } finally {
+      if (_injectedClient == null) {
+        client.close();
+      }
+    }
+  }
+
+  @override
+  Future<void> updateDocument(DocumentEntry entry) async {
+    final idx = _documents.indexWhere(
+      (d) =>
+          d.id == entry.id || (entry.jobId != null && d.jobId == entry.jobId),
+    );
+    if (idx != -1) {
+      _documents[idx] = entry;
+    } else {
+      _documents.insert(0, entry);
+    }
+    await _saveToPrefs();
   }
 
   @override

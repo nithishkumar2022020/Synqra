@@ -12,6 +12,15 @@ class RagStreamRepository implements IRagStreamRepository {
 
   RagStreamRepository({http.Client? client}) : _injectedClient = client;
 
+  static bool _isValidApiKey(String? key) {
+    if (key == null) return false;
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) return false;
+    // Suppress masked password/asterisk tokens like '******' or '••••••••'
+    if (RegExp(r'^[\*•\s]+$').hasMatch(trimmed)) return false;
+    return true;
+  }
+
   @override
   void cancelStream() {
     _isCancelled = true;
@@ -110,8 +119,8 @@ class RagStreamRepository implements IRagStreamRepository {
             activeUrl.endsWith('/stream')
                 ? 'text/event-stream, application/json'
                 : 'application/json, text/event-stream';
-        if (apiKey != null && apiKey.trim().isNotEmpty) {
-          request.headers['Authorization'] = 'Bearer ${apiKey.trim()}';
+        if (_isValidApiKey(apiKey)) {
+          request.headers['Authorization'] = 'Bearer ${apiKey!.trim()}';
         }
 
         final payload = <String, dynamic>{'question': prompt};
@@ -195,9 +204,11 @@ class RagStreamRepository implements IRagStreamRepository {
           await Future.delayed(const Duration(milliseconds: 300));
           continue;
         }
-        yield StreamErrorEvent(
-          'Cannot reach $activeUrl ($e). Ensure backend is running & `adb reverse tcp:8000 tcp:8000` is active.',
-        );
+        final hint =
+            activeUrl.contains('localhost') || activeUrl.contains('127.0.0.1')
+                ? 'Ensure backend is running & `adb reverse tcp:8000 tcp:8000` is active.'
+                : 'Ensure backend at $activeUrl is reachable and online.';
+        yield StreamErrorEvent('Cannot reach $activeUrl ($e). $hint');
         return;
       } finally {
         _ownedClient?.close();

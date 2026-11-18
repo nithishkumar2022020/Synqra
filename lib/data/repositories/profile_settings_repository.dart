@@ -23,13 +23,21 @@ class ProfileSettingsRepository implements IProfileSettingsRepository {
       final defaults = ProfileSettings.defaults();
       var endpoint = prefs.getString(_kSseEndpoint) ?? defaults.sseEndpoint;
       if (endpoint.contains('rag-internal.local') ||
-          endpoint == 'http://localhost:8000/questions' ||
-          endpoint == 'http://127.0.0.1:8000/questions') {
+          endpoint.contains('localhost') ||
+          endpoint.contains('127.0.0.1') ||
+          endpoint.contains('api.synqra.ai') ||
+          endpoint.contains('15.134.145.177')) {
         endpoint = defaults.sseEndpoint;
+        await prefs.setString(_kSseEndpoint, endpoint);
+      }
+
+      var rawApiKey = prefs.getString(_kApiKey) ?? defaults.apiKey;
+      if (RegExp(r'^[\*•\s]+$').hasMatch(rawApiKey.trim())) {
+        rawApiKey = '';
       }
 
       return ProfileSettings(
-        apiKey: prefs.getString(_kApiKey) ?? defaults.apiKey,
+        apiKey: rawApiKey,
         sseEndpoint: endpoint,
         isNocturneMode:
             prefs.getBool(_kNocturneMode) ?? defaults.isNocturneMode,

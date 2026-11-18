@@ -112,6 +112,7 @@ class AppTheme {
     required Color color,
     double fontSize = 12,
     FontWeight fontWeight = FontWeight.w600,
+    double? height,
     double? letterSpacing,
   }) {
     try {
@@ -119,6 +120,7 @@ class AppTheme {
         color: color,
         fontSize: fontSize,
         fontWeight: fontWeight,
+        height: height,
         letterSpacing: letterSpacing,
       ).copyWith(fontFamilyFallback: const ['monospace', 'Courier New']);
     } catch (_) {
@@ -127,6 +129,7 @@ class AppTheme {
         color: color,
         fontSize: fontSize,
         fontWeight: fontWeight,
+        height: height,
         letterSpacing: letterSpacing,
       );
     }
