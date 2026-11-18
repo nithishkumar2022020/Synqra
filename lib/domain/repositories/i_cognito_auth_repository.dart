@@ -8,13 +8,14 @@ abstract class ICognitoAuthRepository {
   Future<void> saveSession(CognitoAuthSession session);
   Future<void> clearSession();
 
+  // Legacy AppAuth Managed Login (kept for temporary compatibility)
   Future<CognitoAuthSession> signInWithManagedLogin({CognitoConfig? config});
-
   Future<void> signOutWithManagedLogin({
     String? idToken,
     CognitoConfig? config,
   });
 
+  // Direct Cognito Authentication (Amplify Auth / SRP)
   Future<CognitoAuthSession> signIn({
     required String username,
     required String password,
@@ -41,9 +42,22 @@ abstract class ICognitoAuthRepository {
     CognitoConfig? config,
   });
 
+  Future<void> resetPassword({required String username, CognitoConfig? config});
+
+  Future<void> confirmResetPassword({
+    required String username,
+    required String newPassword,
+    required String confirmationCode,
+    CognitoConfig? config,
+  });
+
+  Future<void> signOut();
+
   Future<CognitoAuthSession> refreshToken({
     required String refreshToken,
     required String username,
     CognitoConfig? config,
   });
+
+  Future<String?> fetchValidAccessToken();
 }

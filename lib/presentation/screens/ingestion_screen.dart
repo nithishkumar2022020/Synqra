@@ -114,10 +114,7 @@ class _IngestionScreenState extends State<IngestionScreen>
     final corpus = context.read<CorpusProvider>();
     if (corpus.isUploading) return;
 
-    final settingsProv = context.read<SettingsProvider>();
-    await settingsProv.getValidAccessToken();
-    if (!mounted) return;
-    final settings = settingsProv.settings;
+    final settings = context.read<SettingsProvider>().settings;
 
     if (settings.useOfflineSimulation) {
       final doc = await corpus.uploadPdf(

@@ -25,10 +25,14 @@ class AuthenticatedHttpClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     try {
-      final token = await _getAccessToken();
-      if (_isValidBearerToken(token) &&
-          !request.headers.containsKey('Authorization')) {
-        request.headers['Authorization'] = 'Bearer ${token!.trim()}';
+      // Security constraint: Do not transmit real access tokens to an HTTP-only backend.
+      // Authenticated requests require an encrypted HTTPS transport.
+      if (request.url.scheme == 'https') {
+        final token = await _getAccessToken();
+        if (_isValidBearerToken(token) &&
+            !request.headers.containsKey('Authorization')) {
+          request.headers['Authorization'] = 'Bearer ${token!.trim()}';
+        }
       }
     } catch (_) {
       // In case token retrieval fails, proceed with the original request

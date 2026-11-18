@@ -444,5 +444,72 @@ void main() {
       await client.get(Uri.parse('https://api.synqra.ai/questions'));
       expect(captured.headers.containsKey('Authorization'), isFalse);
     });
+
+    test(
+      'does not transmit real bearer token over cleartext http (HTTPS required)',
+      () async {
+        late http.Request captured;
+        final mockInner = MockClient((request) async {
+          captured = request;
+          return http.Response('{"status":"ok"}', 200);
+        });
+
+        final client = AuthenticatedHttpClient(
+          client: mockInner,
+          getAccessToken: () async => 'cognito_bearer_token',
+        );
+
+        // Target cleartext http backend
+        final response = await client.get(
+          Uri.parse('http://32.236.134.203/questions'),
+        );
+        expect(response.statusCode, 200);
+        expect(captured.headers.containsKey('Authorization'), isFalse);
+      },
+    );
+
+    test(
+      'resetPassword and confirmResetPassword trigger Cognito API',
+      () async {
+        late String capturedAction;
+        late Map<String, dynamic> capturedBody;
+
+        final mockClient = MockClient((request) async {
+          capturedAction = request.headers['X-Amz-Target']!;
+          capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response('{}', 200);
+        });
+
+        final cognitoRepo = CognitoAuthRepository(
+          client: mockClient,
+          memoryStorageFallback: {},
+        );
+
+        await cognitoRepo.resetPassword(
+          username: 'ARCH-9942',
+          config: testConfig,
+        );
+        expect(
+          capturedAction,
+          'AWSCognitoIdentityProviderService.ForgotPassword',
+        );
+        expect(capturedBody['Username'], 'ARCH-9942');
+        expect(capturedBody['ClientId'], testConfig.appClientId);
+
+        await cognitoRepo.confirmResetPassword(
+          username: 'ARCH-9942',
+          newPassword: 'NewCryptographicPasskey!123',
+          confirmationCode: '654321',
+          config: testConfig,
+        );
+        expect(
+          capturedAction,
+          'AWSCognitoIdentityProviderService.ConfirmForgotPassword',
+        );
+        expect(capturedBody['Username'], 'ARCH-9942');
+        expect(capturedBody['Password'], 'NewCryptographicPasskey!123');
+        expect(capturedBody['ConfirmationCode'], '654321');
+      },
+    );
   });
 }

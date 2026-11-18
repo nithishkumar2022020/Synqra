@@ -113,8 +113,31 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   /// Returns a valid, non-expired Cognito Access Token.
-  /// Automatically refreshes the session via PKCE if the access token has expired.
+  /// Automatically refreshes the session via Amplify SRP or fallback refreshToken.
   Future<String?> getValidAccessToken() async {
+    // Fast path: synchronous return if valid session or API key is active
+    if (_cognitoSession != null && !_cognitoSession!.isExpired) {
+      return _cognitoSession!.accessToken;
+    }
+    if (_settings.apiKey.isNotEmpty && !_settings.isGuest) {
+      return _settings.apiKey;
+    }
+
+    try {
+      final validToken = await _cognitoRepository.fetchValidAccessToken();
+      if (validToken != null && validToken.isNotEmpty) {
+        if (_settings.apiKey != validToken) {
+          _settings = _settings.copyWith(
+            apiKey: validToken,
+            isAuthenticated: true,
+          );
+          await _repository.saveSettings(_settings);
+          notifyListeners();
+        }
+        return validToken;
+      }
+    } catch (_) {}
+
     if (_cognitoSession == null) {
       return _settings.apiKey.isNotEmpty ? _settings.apiKey : null;
     }
@@ -314,6 +337,54 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> resetPassword({required String username}) async {
+    _isAuthenticating = true;
+    _authError = null;
+    notifyListeners();
+
+    try {
+      await _cognitoRepository.resetPassword(
+        username: username.trim(),
+        config: _cognitoConfig,
+      );
+      _isAuthenticating = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isAuthenticating = false;
+      _authError = e.toString().replaceFirst('CognitoAuthException: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> confirmResetPassword({
+    required String username,
+    required String newPassword,
+    required String confirmationCode,
+  }) async {
+    _isAuthenticating = true;
+    _authError = null;
+    notifyListeners();
+
+    try {
+      await _cognitoRepository.confirmResetPassword(
+        username: username.trim(),
+        newPassword: newPassword,
+        confirmationCode: confirmationCode.trim(),
+        config: _cognitoConfig,
+      );
+      _isAuthenticating = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isAuthenticating = false;
+      _authError = e.toString().replaceFirst('CognitoAuthException: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> enterAsGuest() async {
     final updated = _settings.copyWith(
       isAuthenticated: true,
@@ -381,7 +452,7 @@ class SettingsProvider extends ChangeNotifier {
       if (clearBrowserSession && _cognitoSession != null) {
         await signOutWithManagedLogin();
       } else {
-        await _cognitoRepository.clearSession();
+        await _cognitoRepository.signOut();
         _cognitoSession = null;
         final updated = _settings.copyWith(
           isAuthenticated: false,

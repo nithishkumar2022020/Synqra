@@ -230,6 +230,239 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
     );
   }
 
+  void _showPasswordResetDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppTheme.nocturneText : AppTheme.parchmentText;
+    final mutedText =
+        isDark ? AppTheme.nocturneMutedText : AppTheme.parchmentMutedText;
+    final vermilion =
+        isDark ? AppTheme.nocturneVermilion : AppTheme.parchmentVermilion;
+    final borderColor =
+        isDark ? AppTheme.nocturneBorder : AppTheme.parchmentBorder;
+    final surfaceColor =
+        isDark ? AppTheme.nocturneSurface : AppTheme.parchmentSurface;
+    final bg = isDark ? AppTheme.nocturneBg : AppTheme.parchmentBg;
+
+    final resetUserCtrl = TextEditingController(
+      text: _callSignController.text.trim(),
+    );
+    final resetCodeCtrl = TextEditingController();
+    final resetNewPassCtrl = TextEditingController();
+    bool codeSent = false;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final prov = context.watch<SettingsProvider>();
+
+            return AlertDialog(
+              backgroundColor: surfaceColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+                side: BorderSide(color: borderColor, width: 2),
+              ),
+              title: Text(
+                codeSent
+                    ? 'UPDATE CRYPTOGRAPHIC PASSKEY'
+                    : 'PASSKEY RECOVERY PROTOCOL',
+                style: AppTheme.slabHeader(color: textColor, fontSize: 16),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      codeSent
+                          ? 'Enter the 6-digit verification code dispatched to your Cognito verified email and designate your new passkey:'
+                          : 'Enter your Call Sign / Clearance Username to receive an authentication recovery code via AWS Cognito:',
+                      style: AppTheme.readingSerif(
+                        color: mutedText,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (!codeSent) ...[
+                      Text(
+                        'CALL SIGN / USERNAME',
+                        style: AppTheme.monospace(
+                          color: mutedText,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildTextField(
+                        key: const Key('input_reset_username'),
+                        controller: resetUserCtrl,
+                        hint: 'e.g. ARCH-9942',
+                        textColor: textColor,
+                        mutedText: mutedText,
+                        borderColor: borderColor,
+                        bgColor: bg,
+                      ),
+                    ] else ...[
+                      Text(
+                        '6-DIGIT VERIFICATION CODE',
+                        style: AppTheme.monospace(
+                          color: mutedText,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildTextField(
+                        key: const Key('input_reset_code'),
+                        controller: resetCodeCtrl,
+                        hint: 'e.g. 123456',
+                        textColor: textColor,
+                        mutedText: mutedText,
+                        borderColor: borderColor,
+                        bgColor: bg,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'NEW SECURITY PASSKEY',
+                        style: AppTheme.monospace(
+                          color: mutedText,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildTextField(
+                        key: const Key('input_reset_new_passkey'),
+                        controller: resetNewPassCtrl,
+                        hint: 'Enter new cryptographic passkey',
+                        isPassword: true,
+                        textColor: textColor,
+                        mutedText: mutedText,
+                        borderColor: borderColor,
+                        bgColor: bg,
+                      ),
+                    ],
+                    if (prov.authError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        prov.authError!,
+                        style: AppTheme.monospace(
+                          color: vermilion,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    prov.clearAuthError();
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: Text(
+                    'CANCEL',
+                    style: AppTheme.monospace(color: mutedText, fontSize: 11),
+                  ),
+                ),
+                if (!codeSent)
+                  GestureDetector(
+                    key: const Key('btn_request_password_reset'),
+                    onTap:
+                        prov.isAuthenticating
+                            ? null
+                            : () async {
+                              final success = await prov.resetPassword(
+                                username: resetUserCtrl.text.trim(),
+                              );
+                              if (success) {
+                                setDialogState(() => codeSent = true);
+                              }
+                            },
+                    child: Container(
+                      color: vermilion,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'DISPATCH CODE',
+                        style: AppTheme.monospace(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  GestureDetector(
+                    key: const Key('btn_confirm_password_reset'),
+                    onTap:
+                        prov.isAuthenticating
+                            ? null
+                            : () async {
+                              final navigator = Navigator.of(dialogContext);
+                              final messenger = ScaffoldMessenger.of(context);
+                              final success = await prov.confirmResetPassword(
+                                username: resetUserCtrl.text.trim(),
+                                newPassword: resetNewPassCtrl.text,
+                                confirmationCode: resetCodeCtrl.text.trim(),
+                              );
+                              if (success && mounted) {
+                                _passkeyController.text = resetNewPassCtrl.text;
+                                _callSignController.text =
+                                    resetUserCtrl.text.trim();
+                                navigator.pop();
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: vermilion,
+                                    content: Text(
+                                      'PASSKEY UPDATED SUCCESSFULLY. AUTHENTICATING...',
+                                      style: AppTheme.monospace(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                                final loginSuccess = await prov.signIn(
+                                  callSign: resetUserCtrl.text.trim(),
+                                  passkey: resetNewPassCtrl.text,
+                                );
+                                if (loginSuccess && mounted) {
+                                  _proceedToWorkspace();
+                                }
+                              }
+                            },
+                    child: Container(
+                      color: vermilion,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'RESET & ENTER',
+                        style: AppTheme.monospace(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _handleGuestBypass() async {
     final settingsProv = context.read<SettingsProvider>();
     await settingsProv.enterAsGuest();
@@ -669,6 +902,25 @@ class _ClearanceAuthScreenState extends State<ClearanceAuthScreen> {
                       borderColor: borderColor,
                       bgColor: bg,
                     ),
+                    if (!_isSignUp) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          key: const Key('auth_forgot_passkey_btn'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _showPasswordResetDialog,
+                          child: Text(
+                            'FORGOT PASSKEY? // RECOVERY PROTOCOL ➔',
+                            style: AppTheme.monospace(
+                              color: vermilion,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
 
                     // Authenticate & Enter Submit CTA

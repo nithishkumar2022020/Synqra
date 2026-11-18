@@ -45,6 +45,8 @@ dependencies:
   file_picker: ^13.3.3
   flutter_appauth: ^12.1.0
   flutter_secure_storage: ^11.2.0
+  amplify_flutter: ^2.16.0
+  amplify_auth_cognito: ^2.16.0
 
 dev_dependencies:
   flutter_test:

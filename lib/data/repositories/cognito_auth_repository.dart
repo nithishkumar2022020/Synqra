@@ -1,10 +1,31 @@
 import 'dart:convert';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart' as amplify;
+import 'package:amplify_flutter/amplify_flutter.dart' as amplify_core;
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/models/cognito_auth.dart';
 import '../../domain/repositories/i_cognito_auth_repository.dart';
+
+class _SimpleInMemorySecureStorage extends amplify_core.SecureStorageInterface {
+  static final Map<String, String> _data = {};
+
+  const _SimpleInMemorySecureStorage();
+
+  @override
+  void write({required String key, required String value}) {
+    _data[key] = value;
+  }
+
+  @override
+  String? read({required String key}) => _data[key];
+
+  @override
+  void delete({required String key}) {
+    _data.remove(key);
+  }
+}
 
 class CognitoAuthException implements Exception {
   final String code;
@@ -32,12 +53,14 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
 
   // In-memory cache for fast synchronous access & mock fallback in unit tests
   final Map<String, String>? _memoryStorageFallback;
+  final amplify_core.SecureStorageFactory? _amplifyStorageFactory;
 
   CognitoAuthRepository({
     FlutterAppAuth? appAuth,
     FlutterSecureStorage? secureStorage,
     http.Client? client,
     Map<String, String>? memoryStorageFallback,
+    amplify_core.SecureStorageFactory? amplifyStorageFactory,
   }) : _appAuth = appAuth ?? const FlutterAppAuth(),
        _secureStorage =
            secureStorage ??
@@ -45,9 +68,58 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
              aOptions: AndroidOptions(resetOnError: true),
            ),
        _injectedClient = client,
-       _memoryStorageFallback = memoryStorageFallback;
+       _memoryStorageFallback = memoryStorageFallback,
+       _amplifyStorageFactory =
+           amplifyStorageFactory ??
+           (memoryStorageFallback != null
+               ? ((scope) => const _SimpleInMemorySecureStorage())
+               : null);
 
   http.Client _getClient() => _injectedClient ?? http.Client();
+
+  /// Lazily configures the AWS Amplify Auth Cognito SDK for SRP authentication.
+  Future<void> initializeAmplify({CognitoConfig? config}) async {
+    if (amplify_core.Amplify.isConfigured) return;
+    final activeConfig = config ?? await loadConfig();
+    if (!activeConfig.isConfigured) return;
+
+    try {
+      final authPlugin = amplify.AmplifyAuthCognito(
+        secureStorageFactory: _amplifyStorageFactory,
+      );
+      await amplify_core.Amplify.addPlugin(authPlugin);
+
+      final configJson = '''{
+  "UserAgent": "aws-amplify-cli/2.0",
+  "Version": "1.0",
+  "auth": {
+    "plugins": {
+      "awsCognitoAuthPlugin": {
+        "UserAgent": "aws-amplify-cli/0.1.0",
+        "Version": "0.1.0",
+        "CognitoUserPool": {
+          "Default": {
+            "PoolId": "${activeConfig.userPoolId}",
+            "AppClientId": "${activeConfig.appClientId}",
+            "Region": "${activeConfig.region}"
+          }
+        },
+        "Auth": {
+          "Default": {
+            "authenticationFlowType": "USER_SRP_AUTH"
+          }
+        }
+      }
+    }
+  }
+}''';
+      await amplify_core.Amplify.configure(configJson);
+    } on amplify_core.AmplifyAlreadyConfiguredException {
+      // Already configured, safe to proceed
+    } catch (_) {
+      // Graceful fallback when platform channels are unavailable in unit tests
+    }
+  }
 
   @override
   Future<CognitoConfig> loadConfig() async {
@@ -130,6 +202,26 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
   }
 
   @override
+  Future<String?> fetchValidAccessToken() async {
+    try {
+      await initializeAmplify();
+      if (amplify_core.Amplify.isConfigured) {
+        final session = await amplify_core.Amplify.Auth.fetchAuthSession();
+        if (session.isSignedIn && session is amplify.CognitoAuthSession) {
+          final tokens = session.userPoolTokensResult.value;
+          return tokens.accessToken.raw;
+        }
+      }
+    } catch (_) {}
+
+    final saved = await loadSavedSession();
+    if (saved != null && !saved.isExpired) {
+      return saved.accessToken;
+    }
+    return null;
+  }
+
+  @override
   Future<CognitoAuthSession> signInWithManagedLogin({
     CognitoConfig? config,
   }) async {
@@ -138,7 +230,6 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
     try {
       AuthorizationTokenResponse result;
       try {
-        // Primary flow: Use Cognito's OIDC discovery configuration (.well-known/openid-configuration)
         result = await _appAuth.authorizeAndExchangeCode(
           AuthorizationTokenRequest(
             activeConfig.appClientId,
@@ -150,7 +241,6 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
           ),
         );
       } catch (_) {
-        // Fallback: Use direct service configuration if OIDC discovery is unavailable
         final serviceConfiguration = AuthorizationServiceConfiguration(
           authorizationEndpoint: activeConfig.authorizationEndpoint,
           tokenEndpoint: activeConfig.tokenEndpoint,
@@ -236,7 +326,6 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
 
     try {
       try {
-        // Primary flow: Use Cognito's OIDC discovery for end_session_endpoint
         await _appAuth.endSession(
           EndSessionRequest(
             idTokenHint:
@@ -247,7 +336,6 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
           ),
         );
       } catch (_) {
-        // Fallback: Direct service configuration
         final serviceConfiguration = AuthorizationServiceConfiguration(
           authorizationEndpoint: activeConfig.authorizationEndpoint,
           tokenEndpoint: activeConfig.tokenEndpoint,
@@ -264,7 +352,7 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
         );
       }
     } catch (_) {
-      // Browser dismiss or cancellation still clears local session
+      // Browser dismiss still clears local session
     } finally {
       await clearSession();
     }
@@ -339,6 +427,91 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
       );
     }
 
+    // Primary: Amplify Auth (SRP USER_SRP_AUTH)
+    try {
+      await initializeAmplify(config: activeConfig);
+      if (amplify_core.Amplify.isConfigured) {
+        final result = await amplify_core.Amplify.Auth.signIn(
+          username: username.trim(),
+          password: password,
+        );
+
+        if (result.isSignedIn) {
+          final session = await amplify_core.Amplify.Auth.fetchAuthSession();
+          if (session is amplify.CognitoAuthSession) {
+            final tokens = session.userPoolTokensResult.value;
+            final accessToken = tokens.accessToken.raw;
+            final idToken = tokens.idToken.raw;
+            final refreshToken = tokens.refreshToken;
+
+            String? researcherName;
+            String? clearanceLevel;
+            String? email;
+
+            try {
+              final attributes =
+                  await amplify_core.Amplify.Auth.fetchUserAttributes();
+              for (final attr in attributes) {
+                if (attr.userAttributeKey ==
+                        amplify.AuthUserAttributeKey.name ||
+                    attr.userAttributeKey ==
+                        amplify.AuthUserAttributeKey.givenName) {
+                  researcherName = attr.value;
+                } else if (attr.userAttributeKey ==
+                    amplify.AuthUserAttributeKey.email) {
+                  email = attr.value;
+                } else if (attr.userAttributeKey.key == 'custom:clearance') {
+                  clearanceLevel = attr.value;
+                }
+              }
+            } catch (_) {}
+
+            final cognitoSession = CognitoAuthSession(
+              accessToken: accessToken,
+              idToken: idToken,
+              refreshToken: refreshToken,
+              expiresAt: DateTime.now().add(const Duration(hours: 1)),
+              username: username.trim(),
+              researcherName: researcherName,
+              clearanceLevel: clearanceLevel,
+              email: email,
+            );
+
+            await saveSession(cognitoSession);
+            return cognitoSession;
+          }
+        } else {
+          final nextStep = result.nextStep;
+          if (nextStep.signInStep == amplify.AuthSignInStep.confirmSignUp) {
+            throw CognitoAuthException(
+              code: 'UserNotConfirmedException',
+              message: 'Account not confirmed. Please enter verification code.',
+            );
+          } else if (nextStep.signInStep ==
+              amplify.AuthSignInStep.confirmSignInWithNewPassword) {
+            throw CognitoAuthException(
+              code: 'NewPasswordRequiredException',
+              message: 'New password required for this account.',
+            );
+          } else {
+            throw CognitoAuthException(
+              code: nextStep.signInStep.name,
+              message: 'Authentication challenge: ${nextStep.signInStep.name}',
+            );
+          }
+        }
+      }
+    } on amplify_core.AuthException catch (e) {
+      final code =
+          e.runtimeType.toString() == 'UserNotConfirmedException'
+              ? 'UserNotConfirmedException'
+              : e.runtimeType.toString();
+      throw CognitoAuthException(code: code, message: e.message);
+    } catch (e) {
+      if (e is CognitoAuthException) rethrow;
+    }
+
+    // Fallback: Direct REST API (USER_PASSWORD_AUTH or Mock in unit tests)
     final response = await _callCognitoApi(
       config: activeConfig,
       action: 'InitiateAuth',
@@ -405,11 +578,41 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
     CognitoConfig? config,
   }) async {
     final activeConfig = config ?? await loadConfig();
+    if (!activeConfig.isConfigured) return true;
 
-    if (!activeConfig.isConfigured) {
-      return true;
+    // Primary: Amplify Auth
+    try {
+      await initializeAmplify(config: activeConfig);
+      if (amplify_core.Amplify.isConfigured) {
+        final userAttrs = <amplify.AuthUserAttributeKey, String>{
+          amplify.AuthUserAttributeKey.email: email.trim(),
+        };
+        if (researcherName != null && researcherName.trim().isNotEmpty) {
+          userAttrs[amplify.AuthUserAttributeKey.name] = researcherName.trim();
+        }
+        if (clearanceLevel != null && clearanceLevel.trim().isNotEmpty) {
+          userAttrs[const amplify.CognitoUserAttributeKey.custom('clearance')] =
+              clearanceLevel.trim();
+        }
+
+        final result = await amplify_core.Amplify.Auth.signUp(
+          username: username.trim(),
+          password: password,
+          options: amplify.SignUpOptions(userAttributes: userAttrs),
+        );
+
+        return result.isSignUpComplete;
+      }
+    } on amplify_core.AuthException catch (e) {
+      throw CognitoAuthException(
+        code: e.runtimeType.toString(),
+        message: e.message,
+      );
+    } catch (e) {
+      if (e is CognitoAuthException) rethrow;
     }
 
+    // Fallback: Direct REST API
     final userAttrs = <Map<String, String>>[
       {'Name': 'email', 'Value': email.trim()},
     ];
@@ -447,6 +650,24 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
     final activeConfig = config ?? await loadConfig();
     if (!activeConfig.isConfigured) return;
 
+    try {
+      await initializeAmplify(config: activeConfig);
+      if (amplify_core.Amplify.isConfigured) {
+        await amplify_core.Amplify.Auth.confirmSignUp(
+          username: username.trim(),
+          confirmationCode: confirmationCode.trim(),
+        );
+        return;
+      }
+    } on amplify_core.AuthException catch (e) {
+      throw CognitoAuthException(
+        code: e.runtimeType.toString(),
+        message: e.message,
+      );
+    } catch (e) {
+      if (e is CognitoAuthException) rethrow;
+    }
+
     await _callCognitoApi(
       config: activeConfig,
       action: 'ConfirmSignUp',
@@ -466,6 +687,23 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
     final activeConfig = config ?? await loadConfig();
     if (!activeConfig.isConfigured) return;
 
+    try {
+      await initializeAmplify(config: activeConfig);
+      if (amplify_core.Amplify.isConfigured) {
+        await amplify_core.Amplify.Auth.resendSignUpCode(
+          username: username.trim(),
+        );
+        return;
+      }
+    } on amplify_core.AuthException catch (e) {
+      throw CognitoAuthException(
+        code: e.runtimeType.toString(),
+        message: e.message,
+      );
+    } catch (e) {
+      if (e is CognitoAuthException) rethrow;
+    }
+
     await _callCognitoApi(
       config: activeConfig,
       action: 'ResendConfirmationCode',
@@ -477,6 +715,92 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
   }
 
   @override
+  Future<void> resetPassword({
+    required String username,
+    CognitoConfig? config,
+  }) async {
+    final activeConfig = config ?? await loadConfig();
+    if (!activeConfig.isConfigured) return;
+
+    try {
+      await initializeAmplify(config: activeConfig);
+      if (amplify_core.Amplify.isConfigured) {
+        await amplify_core.Amplify.Auth.resetPassword(
+          username: username.trim(),
+        );
+        return;
+      }
+    } on amplify_core.AuthException catch (e) {
+      throw CognitoAuthException(
+        code: e.runtimeType.toString(),
+        message: e.message,
+      );
+    } catch (e) {
+      if (e is CognitoAuthException) rethrow;
+    }
+
+    await _callCognitoApi(
+      config: activeConfig,
+      action: 'ForgotPassword',
+      payload: {
+        'ClientId': activeConfig.appClientId,
+        'Username': username.trim(),
+      },
+    );
+  }
+
+  @override
+  Future<void> confirmResetPassword({
+    required String username,
+    required String newPassword,
+    required String confirmationCode,
+    CognitoConfig? config,
+  }) async {
+    final activeConfig = config ?? await loadConfig();
+    if (!activeConfig.isConfigured) return;
+
+    try {
+      await initializeAmplify(config: activeConfig);
+      if (amplify_core.Amplify.isConfigured) {
+        await amplify_core.Amplify.Auth.confirmResetPassword(
+          username: username.trim(),
+          newPassword: newPassword,
+          confirmationCode: confirmationCode.trim(),
+        );
+        return;
+      }
+    } on amplify_core.AuthException catch (e) {
+      throw CognitoAuthException(
+        code: e.runtimeType.toString(),
+        message: e.message,
+      );
+    } catch (e) {
+      if (e is CognitoAuthException) rethrow;
+    }
+
+    await _callCognitoApi(
+      config: activeConfig,
+      action: 'ConfirmForgotPassword',
+      payload: {
+        'ClientId': activeConfig.appClientId,
+        'Username': username.trim(),
+        'Password': newPassword,
+        'ConfirmationCode': confirmationCode.trim(),
+      },
+    );
+  }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      if (amplify_core.Amplify.isConfigured) {
+        await amplify_core.Amplify.Auth.signOut();
+      }
+    } catch (_) {}
+    await clearSession();
+  }
+
+  @override
   Future<CognitoAuthSession> refreshToken({
     required String refreshToken,
     required String username,
@@ -485,7 +809,6 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
     final activeConfig = config ?? await loadConfig();
 
     try {
-      // First try refreshing via AppAuth TokenRequest with OIDC discovery
       TokenResponse tokenResult;
       try {
         tokenResult = await _appAuth.token(
@@ -533,9 +856,7 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
         await saveSession(updated);
         return updated;
       }
-    } catch (_) {
-      // Fallback to direct REST API
-    }
+    } catch (_) {}
 
     final response = await _callCognitoApi(
       config: activeConfig,
