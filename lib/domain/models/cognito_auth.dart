@@ -150,6 +150,36 @@ class CognitoAuthSession {
     );
   }
 
+  static bool isUserId(String? text) {
+    if (text == null) return false;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    if (uuidRegex.hasMatch(trimmed)) return true;
+    if (RegExp(r'^[0-9a-fA-F]{32}$').hasMatch(trimmed)) return true;
+    if (trimmed.startsWith('ap-southeast-2_') ||
+        trimmed.startsWith('us-east-1_') ||
+        trimmed.startsWith('eu-west-1_')) {
+      return true;
+    }
+    return false;
+  }
+
+  static String formatNameFromEmail(String email) {
+    final prefix = email.split('@').first;
+    final words = prefix
+        .replaceAll(RegExp(r'[._\-]'), ' ')
+        .trim()
+        .split(RegExp(r'\s+'));
+    final formatted = words
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+    return formatted.isNotEmpty ? formatted : 'Researcher';
+  }
+
   static Map<String, dynamic> decodeJwtPayload(String token) {
     try {
       final parts = token.split('.');

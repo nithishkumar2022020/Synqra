@@ -419,27 +419,35 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      settingsProv.researcherName.toUpperCase(),
-                                      style: AppTheme.slabHeader(
-                                        color: textColor,
-                                        fontSize: 14,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        settingsProv.displayName.toUpperCase(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTheme.slabHeader(
+                                          color: textColor,
+                                          fontSize: 14,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'CLEARANCE: ${settingsProv.clearanceLevel}',
-                                      style: AppTheme.monospace(
-                                        color: vermilion,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'CLEARANCE: ${settingsProv.clearanceLevel}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTheme.monospace(
+                                          color: vermilion,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
+                                const SizedBox(width: 10),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,

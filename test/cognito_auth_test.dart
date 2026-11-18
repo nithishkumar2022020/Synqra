@@ -511,5 +511,54 @@ void main() {
         expect(capturedBody['ConfirmationCode'], '654321');
       },
     );
+
+    test(
+      'User IDs / UUIDs are masked and formatted names are extracted',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final settingsRepo = ProfileSettingsRepository();
+        final cognitoRepo = CognitoAuthRepository(memoryStorageFallback: {});
+        final prov = SettingsProvider(
+          repository: settingsRepo,
+          cognitoRepository: cognitoRepo,
+        );
+
+        const uuid = '695e6448-40a1-707f-32f1-dbbf2bb9fb05';
+        expect(CognitoAuthSession.isUserId(uuid), isTrue);
+        expect(CognitoAuthSession.isUserId('Dr. Nithish R.'), isFalse);
+        expect(CognitoAuthSession.isUserId('ARCH-9942'), isFalse);
+
+        expect(
+          CognitoAuthSession.formatNameFromEmail(
+            'nithish.kumar.reddy@gmail.com',
+          ),
+          'Nithish Kumar Reddy',
+        );
+        expect(
+          CognitoAuthSession.formatNameFromEmail('elena.rostova@synqra.ai'),
+          'Elena Rostova',
+        );
+
+        final session = CognitoAuthSession(
+          accessToken: 'access_mock',
+          idToken: 'id_mock',
+          refreshToken: 'refresh_mock',
+          expiresAt: DateTime.now().add(const Duration(hours: 1)),
+          username: uuid,
+          researcherName: uuid, // raw UUID returned by Cognito
+          clearanceLevel: 'Level-3 Architect',
+          email: 'nithish.reddy@synqra.ai',
+        );
+        await cognitoRepo.saveSession(session);
+        await prov.signIn(callSign: uuid, passkey: 'ValidPass123!');
+
+        // Verify no raw UUID is exposed in user-facing identity fields
+        expect(prov.displayName, 'Nithish Reddy');
+        expect(prov.displayCallSign, 'ARCH-9942');
+        expect(prov.displayInitials, 'NR');
+        expect(prov.displayName.contains(uuid), isFalse);
+        expect(prov.displayCallSign.contains(uuid), isFalse);
+      },
+    );
   });
 }

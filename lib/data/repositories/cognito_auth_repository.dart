@@ -283,13 +283,19 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
             claims['preferred_username']?.toString() ??
             claims['sub']?.toString() ??
             username;
-        researcherName =
-            claims['name']?.toString() ??
-            claims['given_name']?.toString() ??
-            username;
+        email = claims['email']?.toString();
+        final rawName =
+            claims['name']?.toString() ?? claims['given_name']?.toString();
+        if (rawName != null && !CognitoAuthSession.isUserId(rawName)) {
+          researcherName = rawName;
+        } else if (email != null && email.contains('@')) {
+          researcherName = CognitoAuthSession.formatNameFromEmail(email);
+        } else {
+          researcherName =
+              CognitoAuthSession.isUserId(username) ? null : username;
+        }
         clearanceLevel =
             claims['custom:clearance']?.toString() ?? 'Level-3 Architect';
-        email = claims['email']?.toString();
       } else {
         final accessClaims = CognitoAuthSession.decodeJwtPayload(accessToken);
         username = accessClaims['username']?.toString() ?? username;
@@ -422,7 +428,8 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
         refreshToken: 'mock_refresh_token',
         expiresAt: DateTime.now().add(const Duration(hours: 8)),
         username: username,
-        researcherName: username,
+        researcherName:
+            CognitoAuthSession.isUserId(username) ? 'Dr. Nithish R.' : username,
         clearanceLevel: 'Level-3 Architect',
       );
     }
@@ -465,6 +472,29 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
                 }
               }
             } catch (_) {}
+
+            if ((researcherName == null ||
+                    researcherName.isEmpty ||
+                    CognitoAuthSession.isUserId(researcherName)) &&
+                idToken.isNotEmpty) {
+              final claims = CognitoAuthSession.decodeJwtPayload(idToken);
+              final rawName =
+                  claims['name']?.toString() ??
+                  claims['given_name']?.toString();
+              if (rawName != null && !CognitoAuthSession.isUserId(rawName)) {
+                researcherName = rawName;
+              }
+              clearanceLevel ??= claims['custom:clearance']?.toString();
+              email ??= claims['email']?.toString();
+            }
+
+            if ((researcherName == null ||
+                    researcherName.isEmpty ||
+                    CognitoAuthSession.isUserId(researcherName)) &&
+                email != null &&
+                email.contains('@')) {
+              researcherName = CognitoAuthSession.formatNameFromEmail(email);
+            }
 
             final cognitoSession = CognitoAuthSession(
               accessToken: accessToken,
@@ -547,10 +577,19 @@ class CognitoAuthRepository implements ICognitoAuthRepository {
 
     if (idToken != null) {
       final claims = CognitoAuthSession.decodeJwtPayload(idToken);
-      researcherName =
+      final rawName =
           claims['name']?.toString() ?? claims['given_name']?.toString();
+      if (rawName != null && !CognitoAuthSession.isUserId(rawName)) {
+        researcherName = rawName;
+      }
       clearanceLevel = claims['custom:clearance']?.toString();
       email = claims['email']?.toString();
+      if ((researcherName == null ||
+              CognitoAuthSession.isUserId(researcherName)) &&
+          email != null &&
+          email.contains('@')) {
+        researcherName = CognitoAuthSession.formatNameFromEmail(email);
+      }
     }
 
     final session = CognitoAuthSession(

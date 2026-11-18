@@ -24,19 +24,11 @@ class UserProfileScreen extends StatelessWidget {
 
     return Consumer<SettingsProvider>(
       builder: (context, settingsProv, _) {
-        final name = settingsProv.researcherName;
-        final callSign = settingsProv.callSign;
+        final name = settingsProv.displayName;
+        final callSign = settingsProv.displayCallSign;
         final clearance = settingsProv.clearanceLevel.toUpperCase();
         final isGuest = settingsProv.isGuest;
-
-        // Extract initials
-        final nameParts = name.trim().split(RegExp(r'\s+'));
-        final initials =
-            nameParts.length > 1
-                ? '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase()
-                : (name.isNotEmpty
-                    ? name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase()
-                    : 'NR');
+        final initials = settingsProv.displayInitials;
 
         return Scaffold(
           appBar: AppBar(
@@ -53,330 +45,356 @@ class UserProfileScreen extends StatelessWidget {
               child: Container(color: borderColor, height: 2),
             ),
           ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Dossier Card
-                BrutalistContainer(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          // Avatar Badge with Initials
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: vermilion,
-                              border: Border.all(color: borderColor, width: 2),
-                              boxShadow: [
-                                BoxShadow(
+          body: SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top Dossier Card
+                  BrutalistContainer(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            // Avatar Badge with Initials
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: vermilion,
+                                border: Border.all(
                                   color: borderColor,
-                                  offset: const Offset(3, 3),
-                                  blurRadius: 0,
+                                  width: 2,
                                 ),
-                              ],
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: borderColor,
+                                    offset: const Offset(3, 3),
+                                    blurRadius: 0,
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                initials,
+                                style: AppTheme.monospace(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              initials,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.slabHeader(
+                                      color: textColor,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'CALL SIGN: $callSign',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTheme.monospace(
+                                      color: mutedText,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: (isDark
+                                              ? AppTheme.nocturneAmber
+                                              : AppTheme.parchmentAmber)
+                                          .withValues(alpha: 0.2),
+                                      border: Border.all(
+                                        color:
+                                            isDark
+                                                ? AppTheme.nocturneAmber
+                                                : AppTheme.parchmentAmber,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      isGuest
+                                          ? 'LEVEL-1 OBSERVER (GUEST)'
+                                          : clearance,
+                                      style: AppTheme.monospace(
+                                        color:
+                                            isDark
+                                                ? AppTheme.nocturneAmber
+                                                : AppTheme.parchmentAmber,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Vector Quota Meter
+                  Text(
+                    'VECTOR RETRIEVAL QUOTA METER',
+                    style: AppTheme.monospace(
+                      color: mutedText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  BrutalistContainer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '14,208 / 50,000 Chunks',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTheme.monospace(
+                                  color: textColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '28.4% CONSUMED',
                               style: AppTheme.monospace(
-                                color: Colors.white,
-                                fontSize: 22,
+                                color: vermilion,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.zero,
+                          child: LinearProgressIndicator(
+                            value: 0.284,
+                            minHeight: 12,
+                            backgroundColor:
+                                isDark ? Colors.white12 : Colors.black12,
+                            color: vermilion,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Monthly neural embedding and HNSW candidate limit resets in 19 days.',
+                          style: AppTheme.readingSerif(
+                            color: mutedText,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Active Session Ledger
+                  Text(
+                    'ACTIVE SESSION LEDGER',
+                    style: AppTheme.monospace(
+                      color: mutedText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  BrutalistContainer(
+                    child: Column(
+                      children: [
+                        _buildLedgerRow(
+                          title: 'IDENTITY PROVIDER',
+                          value:
+                              isGuest
+                                  ? 'Guest Bypass (Offline)'
+                                  : 'AWS Cognito User Pools (RS256)',
+                          textColor: textColor,
+                          mutedText: mutedText,
+                          vermilion: vermilion,
+                        ),
+                        Divider(
+                          color: borderColor.withValues(alpha: 0.3),
+                          height: 18,
+                        ),
+                        _buildLedgerRow(
+                          title: 'COGNITO SESSION STATUS',
+                          value:
+                              settingsProv.cognitoSession != null &&
+                                      !settingsProv.cognitoSession!.isExpired
+                                  ? 'VALID JWT ACCESS TOKEN'
+                                  : (isGuest
+                                      ? 'LOCAL OBSERVER'
+                                      : 'SIGN-IN REQUIRED'),
+                          textColor: textColor,
+                          mutedText: mutedText,
+                          vermilion: vermilion,
+                        ),
+                        Divider(
+                          color: borderColor.withValues(alpha: 0.3),
+                          height: 18,
+                        ),
+                        _buildLedgerRow(
+                          title: 'ASSIGNED LLM ENDPOINT',
+                          value: 'Gemini 2.5 Flash / Fast RAG Hybrid',
+                          textColor: textColor,
+                          mutedText: mutedText,
+                          vermilion: vermilion,
+                        ),
+                        Divider(
+                          color: borderColor.withValues(alpha: 0.3),
+                          height: 18,
+                        ),
+                        _buildLedgerRow(
+                          title: 'DENSE EMBEDDING MODEL',
+                          value: 'text-embedding-3-large (1536-D)',
+                          textColor: textColor,
+                          mutedText: mutedText,
+                          vermilion: vermilion,
+                        ),
+                        Divider(
+                          color: borderColor.withValues(alpha: 0.3),
+                          height: 18,
+                        ),
+                        _buildLedgerRow(
+                          title: 'SPARSE RETRIEVER',
+                          value: 'BM25 + Token Frequency Hash',
+                          textColor: textColor,
+                          mutedText: mutedText,
+                          vermilion: vermilion,
+                        ),
+                        Divider(
+                          color: borderColor.withValues(alpha: 0.3),
+                          height: 18,
+                        ),
+                        _buildLedgerRow(
+                          title: 'CROSS-ENCODER RERANKER',
+                          value: 'bge-reranker-v2-m3 (GPU Accelerated)',
+                          textColor: textColor,
+                          mutedText: mutedText,
+                          vermilion: vermilion,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  GestureDetector(
+                    key: const Key('profile_export_audit_btn'),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Exported signed cryptographic audit log (SHA-256: 9e4f..8b2).',
+                            style: AppTheme.monospace(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                          backgroundColor: vermilion,
+                        ),
+                      );
+                    },
+                    child: BrutalistContainer(
+                      backgroundColor: surfaceColor,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.download_for_offline_outlined,
+                            color: textColor,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'EXPORT AUDIT LOG',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.monospace(
+                                color: textColor,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name.toUpperCase(),
-                                  style: AppTheme.slabHeader(
-                                    color: textColor,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'CALL SIGN: $callSign',
-                                  style: AppTheme.monospace(
-                                    color: mutedText,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: (isDark
-                                            ? AppTheme.nocturneAmber
-                                            : AppTheme.parchmentAmber)
-                                        .withValues(alpha: 0.2),
-                                    border: Border.all(
-                                      color:
-                                          isDark
-                                              ? AppTheme.nocturneAmber
-                                              : AppTheme.parchmentAmber,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isGuest
-                                        ? 'LEVEL-1 OBSERVER (GUEST)'
-                                        : clearance,
-                                    style: AppTheme.monospace(
-                                      color:
-                                          isDark
-                                              ? AppTheme.nocturneAmber
-                                              : AppTheme.parchmentAmber,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
-                // Vector Quota Meter
-                Text(
-                  'VECTOR RETRIEVAL QUOTA METER',
-                  style: AppTheme.monospace(
-                    color: mutedText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                BrutalistContainer(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  GestureDetector(
+                    key: const Key('profile_revoke_session_btn'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      final nav = Navigator.of(context);
+                      await settingsProv.signOut();
+                      nav.pushAndRemoveUntil(
+                        SmoothPageRoute(page: const ClearanceAuthScreen()),
+                        (route) => false,
+                      );
+                    },
+                    child: BrutalistContainer(
+                      backgroundColor: vermilion,
+                      borderColor: borderColor,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            '14,208 / 50,000 Chunks',
-                            style: AppTheme.monospace(
-                              color: textColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          const Icon(
+                            Icons.logout,
+                            color: Colors.white,
+                            size: 18,
                           ),
-                          Text(
-                            '28.4% CONSUMED',
-                            style: AppTheme.monospace(
-                              color: vermilion,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'REVOKE SESSION / SIGN OUT',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.monospace(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.zero,
-                        child: LinearProgressIndicator(
-                          value: 0.284,
-                          minHeight: 12,
-                          backgroundColor:
-                              isDark ? Colors.white12 : Colors.black12,
-                          color: vermilion,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Monthly neural embedding and HNSW candidate limit resets in 19 days.',
-                        style: AppTheme.readingSerif(
-                          color: mutedText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Active Session Ledger
-                Text(
-                  'ACTIVE SESSION LEDGER',
-                  style: AppTheme.monospace(
-                    color: mutedText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                BrutalistContainer(
-                  child: Column(
-                    children: [
-                      _buildLedgerRow(
-                        title: 'IDENTITY PROVIDER',
-                        value:
-                            isGuest
-                                ? 'Guest Bypass (Offline)'
-                                : 'AWS Cognito User Pools (RS256)',
-                        textColor: textColor,
-                        mutedText: mutedText,
-                        vermilion: vermilion,
-                      ),
-                      Divider(
-                        color: borderColor.withValues(alpha: 0.3),
-                        height: 18,
-                      ),
-                      _buildLedgerRow(
-                        title: 'COGNITO SESSION STATUS',
-                        value:
-                            settingsProv.cognitoSession != null &&
-                                    !settingsProv.cognitoSession!.isExpired
-                                ? 'VALID JWT ACCESS TOKEN'
-                                : (isGuest
-                                    ? 'LOCAL OBSERVER'
-                                    : 'SIGN-IN REQUIRED'),
-                        textColor: textColor,
-                        mutedText: mutedText,
-                        vermilion: vermilion,
-                      ),
-                      Divider(
-                        color: borderColor.withValues(alpha: 0.3),
-                        height: 18,
-                      ),
-                      _buildLedgerRow(
-                        title: 'ASSIGNED LLM ENDPOINT',
-                        value: 'Gemini 2.5 Flash / Fast RAG Hybrid',
-                        textColor: textColor,
-                        mutedText: mutedText,
-                        vermilion: vermilion,
-                      ),
-                      Divider(
-                        color: borderColor.withValues(alpha: 0.3),
-                        height: 18,
-                      ),
-                      _buildLedgerRow(
-                        title: 'DENSE EMBEDDING MODEL',
-                        value: 'text-embedding-3-large (1536-D)',
-                        textColor: textColor,
-                        mutedText: mutedText,
-                        vermilion: vermilion,
-                      ),
-                      Divider(
-                        color: borderColor.withValues(alpha: 0.3),
-                        height: 18,
-                      ),
-                      _buildLedgerRow(
-                        title: 'SPARSE RETRIEVER',
-                        value: 'BM25 + Token Frequency Hash',
-                        textColor: textColor,
-                        mutedText: mutedText,
-                        vermilion: vermilion,
-                      ),
-                      Divider(
-                        color: borderColor.withValues(alpha: 0.3),
-                        height: 18,
-                      ),
-                      _buildLedgerRow(
-                        title: 'CROSS-ENCODER RERANKER',
-                        value: 'bge-reranker-v2-m3 (GPU Accelerated)',
-                        textColor: textColor,
-                        mutedText: mutedText,
-                        vermilion: vermilion,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Action Buttons
-                GestureDetector(
-                  key: const Key('profile_export_audit_btn'),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Exported signed cryptographic audit log (SHA-256: 9e4f..8b2).',
-                          style: AppTheme.monospace(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                        backgroundColor: vermilion,
-                      ),
-                    );
-                  },
-                  child: BrutalistContainer(
-                    backgroundColor: surfaceColor,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.download_for_offline_outlined,
-                          color: textColor,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'EXPORT AUDIT LOG',
-                          style: AppTheme.monospace(
-                            color: textColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-
-                GestureDetector(
-                  key: const Key('profile_revoke_session_btn'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    final nav = Navigator.of(context);
-                    await settingsProv.signOut(clearBrowserSession: true);
-                    nav.pushAndRemoveUntil(
-                      SmoothPageRoute(page: const ClearanceAuthScreen()),
-                      (route) => false,
-                    );
-                  },
-                  child: BrutalistContainer(
-                    backgroundColor: vermilion,
-                    borderColor: borderColor,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.logout, color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'REVOKE SESSION / SIGN OUT',
-                          style: AppTheme.monospace(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-              ],
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         );

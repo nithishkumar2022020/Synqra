@@ -44,6 +44,95 @@ class SettingsProvider extends ChangeNotifier {
   String get clearanceLevel => _settings.clearanceLevel;
   bool get isGuest => _settings.isGuest;
 
+  /// Detects whether a string is a raw user ID (such as a Cognito sub UUID or hex identifier)
+  /// rather than a human-readable name or call sign.
+  static bool isUserId(String? text) {
+    if (text == null) return false;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    // Standard UUID pattern (8-4-4-4-12 hex)
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    if (uuidRegex.hasMatch(trimmed)) return true;
+    // 32-character continuous hex hash
+    if (RegExp(r'^[0-9a-fA-F]{32}$').hasMatch(trimmed)) return true;
+    // AWS Cognito pool or sub prefixes
+    if (trimmed.startsWith('ap-southeast-2_') ||
+        trimmed.startsWith('us-east-1_') ||
+        trimmed.startsWith('eu-west-1_')) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Formats an email address into a human-readable name (e.g. nithishkumarreddy@gmail.com -> Nithish Kumar Reddy).
+  static String formatNameFromEmail(String email) {
+    final prefix = email.split('@').first;
+    final words = prefix
+        .replaceAll(RegExp(r'[._\-]'), ' ')
+        .trim()
+        .split(RegExp(r'\s+'));
+    final formatted = words
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+    return formatted.isNotEmpty ? formatted : 'Researcher';
+  }
+
+  /// Clean display name for the current operator, guaranteed to never show raw Cognito UUIDs or user IDs.
+  String get displayName {
+    if (isGuest) return 'Observer (Guest)';
+
+    // 1. Session researcher name if valid and not a UUID
+    final sessionName = _cognitoSession?.researcherName?.trim();
+    if (sessionName != null &&
+        sessionName.isNotEmpty &&
+        !isUserId(sessionName)) {
+      return sessionName;
+    }
+
+    // 2. Saved settings researcher name if valid and not a UUID
+    final settingName = _settings.researcherName.trim();
+    if (settingName.isNotEmpty && !isUserId(settingName)) {
+      return settingName;
+    }
+
+    // 3. Fallback to extracting from Cognito email
+    final email = _cognitoSession?.email?.trim();
+    if (email != null && email.contains('@')) {
+      return formatNameFromEmail(email);
+    }
+
+    return 'Dr. Nithish R.';
+  }
+
+  /// Clean call sign for the current operator, guaranteed to never show raw Cognito UUIDs or user IDs.
+  String get displayCallSign {
+    if (isGuest) return 'GUEST-OBSERVER';
+
+    final sign = _settings.callSign.trim();
+    if (sign.isNotEmpty && !isUserId(sign)) {
+      return sign;
+    }
+
+    return 'ARCH-9942';
+  }
+
+  /// Initials derived from the clean display name.
+  String get displayInitials {
+    final parts = displayName.trim().split(RegExp(r'\s+'));
+    if (parts.length > 1 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    if (displayName.isNotEmpty) {
+      return displayName
+          .substring(0, displayName.length >= 2 ? 2 : 1)
+          .toUpperCase();
+    }
+    return 'NR';
+  }
+
   void clearAuthError() {
     if (_authError != null) {
       _authError = null;
@@ -74,12 +163,25 @@ class SettingsProvider extends ChangeNotifier {
               username: savedSession.username,
               config: _cognitoConfig,
             );
+            final sessionUsername = _cognitoSession!.username;
+            final resolvedCallSign =
+                isUserId(sessionUsername)
+                    ? _settings.callSign
+                    : sessionUsername;
+            final sessionResearcher = _cognitoSession!.researcherName;
+            final resolvedResearcher =
+                (sessionResearcher != null && !isUserId(sessionResearcher))
+                    ? sessionResearcher
+                    : (_cognitoSession!.email != null &&
+                            _cognitoSession!.email!.contains('@')
+                        ? formatNameFromEmail(_cognitoSession!.email!)
+                        : _settings.researcherName);
+
             _settings = _settings.copyWith(
               apiKey: _cognitoSession!.accessToken,
               isAuthenticated: true,
-              callSign: _cognitoSession!.username,
-              researcherName:
-                  _cognitoSession!.researcherName ?? _settings.researcherName,
+              callSign: resolvedCallSign,
+              researcherName: resolvedResearcher,
               clearanceLevel:
                   _cognitoSession!.clearanceLevel ?? _settings.clearanceLevel,
             );
@@ -90,15 +192,27 @@ class SettingsProvider extends ChangeNotifier {
         } else {
           _cognitoSession = savedSession;
           if (_cognitoSession!.accessToken.isNotEmpty) {
+            final sessionUsername = _cognitoSession!.username;
+            final resolvedCallSign =
+                isUserId(sessionUsername)
+                    ? _settings.callSign
+                    : (sessionUsername.isNotEmpty
+                        ? sessionUsername
+                        : _settings.callSign);
+            final sessionResearcher = _cognitoSession!.researcherName;
+            final resolvedResearcher =
+                (sessionResearcher != null && !isUserId(sessionResearcher))
+                    ? sessionResearcher
+                    : (_cognitoSession!.email != null &&
+                            _cognitoSession!.email!.contains('@')
+                        ? formatNameFromEmail(_cognitoSession!.email!)
+                        : _settings.researcherName);
+
             _settings = _settings.copyWith(
               apiKey: _cognitoSession!.accessToken,
               isAuthenticated: true,
-              callSign:
-                  _cognitoSession!.username.isNotEmpty
-                      ? _cognitoSession!.username
-                      : _settings.callSign,
-              researcherName:
-                  _cognitoSession!.researcherName ?? _settings.researcherName,
+              callSign: resolvedCallSign,
+              researcherName: resolvedResearcher,
               clearanceLevel:
                   _cognitoSession!.clearanceLevel ?? _settings.clearanceLevel,
             );
@@ -205,16 +319,30 @@ class SettingsProvider extends ChangeNotifier {
       _needsConfirmation = false;
       _pendingUsername = null;
 
+      final sessionUsername = session.username;
+      final resolvedCallSign =
+          isUserId(sessionUsername)
+              ? (!isUserId(callSign) && callSign.trim().isNotEmpty
+                  ? callSign.trim()
+                  : _settings.callSign)
+              : (sessionUsername.isNotEmpty ? sessionUsername : callSign);
+      final sessionResearcher = session.researcherName;
+      final resolvedResearcher =
+          (sessionResearcher != null && !isUserId(sessionResearcher))
+              ? sessionResearcher
+              : (session.email != null && session.email!.contains('@')
+                  ? formatNameFromEmail(session.email!)
+                  : (_settings.researcherName.isNotEmpty &&
+                          !isUserId(_settings.researcherName)
+                      ? _settings.researcherName
+                      : 'Nithish R.'));
+
       final updated = _settings.copyWith(
         apiKey: session.accessToken,
         isAuthenticated: true,
         isGuest: false,
-        callSign: session.username.isNotEmpty ? session.username : callSign,
-        researcherName:
-            session.researcherName ??
-            (_settings.researcherName.isNotEmpty
-                ? _settings.researcherName
-                : 'Nithish R.'),
+        callSign: resolvedCallSign,
+        researcherName: resolvedResearcher,
         clearanceLevel: session.clearanceLevel ?? _settings.clearanceLevel,
       );
       await updateSettings(updated);
@@ -411,13 +539,27 @@ class SettingsProvider extends ChangeNotifier {
       _needsConfirmation = false;
       _pendingUsername = null;
 
+      final sessionUsername = session.username;
+      final resolvedCallSign =
+          isUserId(sessionUsername)
+              ? _settings.callSign
+              : (sessionUsername.isNotEmpty
+                  ? sessionUsername
+                  : 'ARCH-OPERATOR');
+      final sessionResearcher = session.researcherName;
+      final resolvedResearcher =
+          (sessionResearcher != null && !isUserId(sessionResearcher))
+              ? sessionResearcher
+              : (session.email != null && session.email!.contains('@')
+                  ? formatNameFromEmail(session.email!)
+                  : _settings.researcherName);
+
       final updated = _settings.copyWith(
         apiKey: session.accessToken,
         isAuthenticated: true,
         isGuest: false,
-        callSign:
-            session.username.isNotEmpty ? session.username : 'ARCH-OPERATOR',
-        researcherName: session.researcherName ?? _settings.researcherName,
+        callSign: resolvedCallSign,
+        researcherName: resolvedResearcher,
         clearanceLevel: session.clearanceLevel ?? _settings.clearanceLevel,
       );
       await updateSettings(updated);
@@ -449,26 +591,14 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> signOut({bool clearBrowserSession = false}) async {
     try {
-      if (clearBrowserSession && _cognitoSession != null) {
-        await signOutWithManagedLogin();
-      } else {
-        await _cognitoRepository.signOut();
-        _cognitoSession = null;
-        final updated = _settings.copyWith(
-          isAuthenticated: false,
-          isGuest: false,
-          apiKey: '',
-        );
-        await updateSettings(updated);
-      }
-    } catch (_) {
-      _cognitoSession = null;
-      final updated = _settings.copyWith(
-        isAuthenticated: false,
-        isGuest: false,
-        apiKey: '',
-      );
-      await updateSettings(updated);
-    }
+      await _cognitoRepository.signOut();
+    } catch (_) {}
+    _cognitoSession = null;
+    final updated = _settings.copyWith(
+      isAuthenticated: false,
+      isGuest: false,
+      apiKey: '',
+    );
+    await updateSettings(updated);
   }
 }

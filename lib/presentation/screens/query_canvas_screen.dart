@@ -210,12 +210,19 @@ class _QueryCanvasScreenState extends State<QueryCanvasScreen>
                                           color: vermilion,
                                         ),
                                         const SizedBox(width: 4),
-                                        Text(
-                                          settingsProv.callSign,
-                                          style: AppTheme.monospace(
-                                            color: vermilion,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                            maxWidth: 120,
+                                          ),
+                                          child: Text(
+                                            settingsProv.displayName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTheme.monospace(
+                                              color: vermilion,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ],
