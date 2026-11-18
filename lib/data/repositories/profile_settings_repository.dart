@@ -26,6 +26,7 @@ class ProfileSettingsRepository implements IProfileSettingsRepository {
           endpoint.contains('localhost') ||
           endpoint.contains('127.0.0.1') ||
           endpoint.contains('api.synqra.ai') ||
+          endpoint.contains('32.236.134.203') ||
           endpoint.contains('15.134.145.177')) {
         endpoint = defaults.sseEndpoint;
         await prefs.setString(_kSseEndpoint, endpoint);

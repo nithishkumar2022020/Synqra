@@ -419,7 +419,7 @@ void main() {
         );
 
         final response = await client.get(
-          Uri.parse('https://api.synqra.ai/questions'),
+          Uri.parse('https://synqra-api.duckdns.org/questions'),
         );
         expect(response.statusCode, 200);
         expect(

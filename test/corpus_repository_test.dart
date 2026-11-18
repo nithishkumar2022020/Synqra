@@ -25,6 +25,12 @@ void main() {
         'https://rag.internal:8443/documents',
       );
       expect(
+        CorpusProvider.resolveDocumentsUrl(
+          'https://synqra-api.duckdns.org/questions/stream',
+        ),
+        'https://synqra-api.duckdns.org/documents',
+      );
+      expect(
         CorpusProvider.resolveDocumentsUrl(''),
         'http://localhost:8000/documents',
       );

@@ -1,11 +1,11 @@
 class ProfileSettings {
+  static const String defaultProductionDomain = 'synqra-api.duckdns.org';
+  static const String liveBaseUrl = 'https://$defaultProductionDomain';
+  static const String productionEndpoint = '$liveBaseUrl/questions/stream';
+  static const String defaultEndpoint = productionEndpoint;
+  static const String localEndpoint = 'http://localhost:8000/questions/stream';
   static const String ec2Host = '32.236.134.203';
   static const String ec2Endpoint = 'http://$ec2Host/questions/stream';
-  static const String defaultProductionDomain = 'api.synqra.ai';
-  static const String productionEndpoint =
-      'https://$defaultProductionDomain/questions/stream';
-  static const String localEndpoint = 'http://localhost:8000/questions/stream';
-  static const String defaultEndpoint = ec2Endpoint;
 
   final String apiKey;
   final String sseEndpoint;

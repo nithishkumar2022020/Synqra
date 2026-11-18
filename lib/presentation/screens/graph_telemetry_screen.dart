@@ -516,7 +516,7 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                               onTap: () {
                                 setState(() {
                                   _sseUrlController.text =
-                                      ProfileSettings.ec2Endpoint;
+                                      ProfileSettings.productionEndpoint;
                                 });
                               },
                               child: Container(
@@ -529,7 +529,7 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                                   color: surfaceColor,
                                 ),
                                 child: Text(
-                                  'EC2 LIVE (32.236.134.203)',
+                                  'PROD LIVE (HTTPS)',
                                   style: AppTheme.monospace(
                                     color: vermilion,
                                     fontSize: 9,
@@ -594,7 +594,7 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                               onTap: () {
                                 setState(() {
                                   _sseUrlController.text =
-                                      ProfileSettings.productionEndpoint;
+                                      ProfileSettings.ec2Endpoint;
                                 });
                               },
                               child: Container(
@@ -607,7 +607,7 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                                   color: surfaceColor,
                                 ),
                                 child: Text(
-                                  'PROD (HTTPS)',
+                                  'EC2 IP (FALLBACK)',
                                   style: AppTheme.monospace(
                                     color: mutedText,
                                     fontSize: 9,
@@ -620,7 +620,7 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Note: Production requires HTTPS domain (ATS/CORS). For physical Pixel on localhost, run adb reverse tcp:8000 tcp:8000.',
+                          'Note: Production backend uses https://synqra-api.duckdns.org (ATS/CORS enabled, JWT Bearer tokens attached). For physical Pixel on localhost, run adb reverse tcp:8000 tcp:8000.',
                           style: AppTheme.monospace(
                             color: mutedText,
                             fontSize: 9,

@@ -93,7 +93,7 @@ class RagSessionProvider extends ChangeNotifier {
         detail:
             settings?.useOfflineSimulation == true
                 ? 'Preparing local offline simulation ($scopeSummary)'
-                : 'Target: ${settings?.sseEndpoint ?? 'http://localhost:8000/questions/stream'} · $scopeSummary',
+                : 'Target: ${settings?.sseEndpoint ?? 'https://synqra-api.duckdns.org/questions/stream'} · $scopeSummary',
         state: ProcessStepState.active,
       ),
     ];
