@@ -34,36 +34,36 @@ Unlike conventional chatbots that deliver opaque answers with vague references, 
 
 <div class="screenshot-grid">
   <div class="screenshot-card">
-    <a href="screenshots/01_archival_boot.png">
-      <img src="screenshots/01_archival_boot.png" alt="Archival Boot Sequence" />
+    <a href="screenshots/mock_01_archival_boot.png">
+      <img src="screenshots/mock_01_archival_boot.png" alt="Archival Boot Sequence" />
     </a>
     <h4>01. Daemon Boot</h4>
     <p>Typewriter terminal init with live vector mounting</p>
   </div>
   <div class="screenshot-card">
-    <a href="screenshots/02_query_canvas.png">
-      <img src="screenshots/02_query_canvas.png" alt="Query Canvas" />
+    <a href="screenshots/mock_02_query_canvas.png">
+      <img src="screenshots/mock_02_query_canvas.png" alt="Query Canvas" />
     </a>
     <h4>02. Query Canvas</h4>
     <p>SSE token stream with interactive citation chips</p>
   </div>
   <div class="screenshot-card">
-    <a href="screenshots/03_corpus_repository.png">
-      <img src="screenshots/03_corpus_repository.png" alt="Corpus Repository" />
+    <a href="screenshots/mock_03_corpus_repository.png">
+      <img src="screenshots/mock_03_corpus_repository.png" alt="Corpus Repository" />
     </a>
     <h4>03. Corpus Ingestion</h4>
     <p>PDF upload, chunking strategy & slide scoping</p>
   </div>
   <div class="screenshot-card">
-    <a href="screenshots/04_vector_matrix.png">
-      <img src="screenshots/04_vector_matrix.png" alt="Vector Matrix" />
+    <a href="screenshots/mock_04_vector_matrix.png">
+      <img src="screenshots/mock_04_vector_matrix.png" alt="Vector Matrix" />
     </a>
     <h4>04. Vector Matrix</h4>
     <p>1536-D embedding manifold & tensor inspection</p>
   </div>
   <div class="screenshot-card">
-    <a href="screenshots/05_graph_telemetry.png">
-      <img src="screenshots/05_graph_telemetry.png" alt="Graph Telemetry" />
+    <a href="screenshots/mock_05_graph_telemetry.png">
+      <img src="screenshots/mock_05_graph_telemetry.png" alt="Graph Telemetry" />
     </a>
     <h4>05. Telemetry & Graph</h4>
     <p>Real-time retrieval latency & HNSW topology</p>

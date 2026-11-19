@@ -7,7 +7,7 @@ SYNQRA organizes the analyst workflow into dedicated canvases accessible via the
 ## 1. Terminal Daemon Boot Screen (`ArchivalSplashScreen`)
 
 <p align="center">
-  <img src="screenshots/01_archival_boot.png" width="380" alt="Terminal Daemon Boot Screen" style="border: 2px solid #1A1918; border-radius: 4px; box-shadow: 4px 4px 0 #1A1918;" />
+  <img src="screenshots/mock_01_archival_boot.png" width="340" alt="Terminal Daemon Boot Screen" />
 </p>
 
 ### Purpose & Functionality
@@ -26,7 +26,7 @@ The application initializes with an interactive typewriter terminal animation de
 ## 2. Neural Retrieval & Attribution Canvas (`QueryCanvasScreen`)
 
 <p align="center">
-  <img src="screenshots/02_query_canvas.png" width="380" alt="Neural Retrieval & Attribution Canvas" style="border: 2px solid #1A1918; border-radius: 4px; box-shadow: 4px 4px 0 #1A1918;" />
+  <img src="screenshots/mock_02_query_canvas.png" width="340" alt="Neural Retrieval & Attribution Canvas" />
 </p>
 
 ### Purpose & Functionality
@@ -49,7 +49,7 @@ When an operator taps an inline citation badge:
 ## 3. Corpus Repository & Ingestion Canvas (`IngestionScreen`)
 
 <p align="center">
-  <img src="screenshots/03_corpus_repository.png" width="380" alt="Corpus Repository & Ingestion Canvas" style="border: 2px solid #1A1918; border-radius: 4px; box-shadow: 4px 4px 0 #1A1918;" />
+  <img src="screenshots/mock_03_corpus_repository.png" width="340" alt="Corpus Repository & Ingestion Canvas" />
 </p>
 
 ### Purpose & Functionality
@@ -70,7 +70,7 @@ Provides complete control over document ingestion, vector indexing, and dynamic 
 ## 4. Vector Matrix Repository Canvas (`MatrixOverviewScreen`)
 
 <p align="center">
-  <img src="screenshots/04_vector_matrix.png" width="380" alt="Vector Matrix Repository Canvas" style="border: 2px solid #1A1918; border-radius: 4px; box-shadow: 4px 4px 0 #1A1918;" />
+  <img src="screenshots/mock_04_vector_matrix.png" width="340" alt="Vector Matrix Repository Canvas" />
 </p>
 
 ### Purpose & Functionality
@@ -84,7 +84,7 @@ Allows knowledge architects to inspect the underlying high-dimensional vector re
 ## 5. Telemetry & Graph Diagnostics Canvas (`GraphTelemetryScreen`)
 
 <p align="center">
-  <img src="screenshots/05_graph_telemetry.png" width="380" alt="Telemetry & Graph Diagnostics Canvas" style="border: 2px solid #1A1918; border-radius: 4px; box-shadow: 4px 4px 0 #1A1918;" />
+  <img src="screenshots/mock_05_graph_telemetry.png" width="340" alt="Telemetry & Graph Diagnostics Canvas" />
 </p>
 
 ### Purpose & Functionality
