@@ -1,0 +1,75 @@
+site_name: "SYNQRA Documentation"
+site_description: "Neural Retrieval & Attribution Canvas // Archival RAG Client in Flutter"
+site_author: "SYNQRA Team"
+repo_name: "Flutter-Project"
+repo_url: "https://github.com/your-username/Flutter-Project"
+
+theme:
+  name: material
+  language: en
+  palette:
+    # Palette toggle for light mode (Warm Parchment aesthetic)
+    - scheme: default
+      primary: deep orange
+      accent: red
+      toggle:
+        icon: material/weather-night
+        name: Switch to Nocturne (Dark) mode
+    # Palette toggle for dark mode (Obsidian Nocturne aesthetic)
+    - scheme: slate
+      primary: deep orange
+      accent: red
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to Parchment (Light) mode
+  font:
+    text: Newsreader
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+  - def_list
+
+nav:
+  - "Overview": index.md
+  - "Application Canvases": canvases.md
+  - "Architecture Blueprint": architecture.md
+  - "Cognito Authentication": auth.md
+  - "Backend API Contract": api.md
+  - "Design System": design-system.md
+  - "Getting Started": getting-started.md
+  - "Testing & QA": testing.md
