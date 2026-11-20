@@ -1,5 +1,27 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+/// Global smooth scroll behavior enabling inertial momentum scrolling
+/// and fluid trackpad/mouse/touch gestures across all platforms (Web, Desktop, Mobile).
+class SynqraScrollBehavior extends MaterialScrollBehavior {
+  const SynqraScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(
+      parent: AlwaysScrollableScrollPhysics(),
+    );
+  }
+}
 
 class AppTheme {
   // Parchment Mode Palette

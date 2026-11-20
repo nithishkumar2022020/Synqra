@@ -189,7 +189,9 @@ class _IngestionScreenState extends State<IngestionScreen>
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // Top Bar
             SliverToBoxAdapter(

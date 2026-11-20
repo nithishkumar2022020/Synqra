@@ -55,7 +55,9 @@ class _MatrixOverviewScreenState extends State<MatrixOverviewScreen>
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // Header
             SliverToBoxAdapter(

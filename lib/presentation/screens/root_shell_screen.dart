@@ -48,8 +48,8 @@ class RootShellScreenState extends State<RootShellScreen> {
     _currentPageNotifier.value = page;
     _pageController.animateToPage(
       page,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.fastOutSlowIn,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeInOutCubic,
     );
   }
 
@@ -69,7 +69,7 @@ class RootShellScreenState extends State<RootShellScreen> {
       body: PageView(
         controller: _pageController,
         dragStartBehavior: DragStartBehavior.down,
-        physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+        physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
         onPageChanged: (page) {
           if (_currentPageNotifier.value != page) {
             _currentPageNotifier.value = page;

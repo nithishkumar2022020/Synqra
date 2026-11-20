@@ -67,6 +67,7 @@ class RagApplication extends StatelessWidget {
         return MaterialApp(
           title: 'Archival RAG Shell',
           debugShowCheckedModeBanner: false,
+          scrollBehavior: const SynqraScrollBehavior(),
           theme: AppTheme.buildTheme(isDark),
           home: const ArchivalSplashScreen(),
         );

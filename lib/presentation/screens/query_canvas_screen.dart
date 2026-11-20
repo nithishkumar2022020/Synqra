@@ -38,11 +38,11 @@ class _QueryCanvasScreenState extends State<QueryCanvasScreen>
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-      );
+      final pos = _scrollController.position;
+      // Protect operator manual scroll reading: only auto-scroll if already near bottom
+      if (pos.maxScrollExtent - pos.pixels < 160) {
+        _scrollController.jumpTo(pos.maxScrollExtent);
+      }
     }
   }
 
@@ -240,7 +240,9 @@ class _QueryCanvasScreenState extends State<QueryCanvasScreen>
                 Expanded(
                   child: CustomScrollView(
                     controller: _scrollController,
-                    physics: const ClampingScrollPhysics(),
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     slivers: [
                       SliverPadding(
                         padding: const EdgeInsets.all(16),

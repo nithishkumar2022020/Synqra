@@ -9,21 +9,24 @@ class SmoothPageRoute<T> extends PageRouteBuilder<T> {
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeInOutCubic,
-            reverseCurve: Curves.easeInOutCubic,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
           );
           return FadeTransition(
-            opacity: curved,
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.85, curve: Curves.easeOut),
+            ),
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(0.05, 0.0),
+                begin: const Offset(0.08, 0.0),
                 end: Offset.zero,
               ).animate(curved),
               child: child,
             ),
           );
         },
-        transitionDuration: const Duration(milliseconds: 260),
-        reverseTransitionDuration: const Duration(milliseconds: 240),
+        transitionDuration: const Duration(milliseconds: 320),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
       );
 }

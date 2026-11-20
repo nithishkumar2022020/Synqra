@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:my_flutter_proj_dq/core/theme/app_theme.dart';
 import 'package:my_flutter_proj_dq/data/repositories/cognito_auth_repository.dart';
 import 'package:my_flutter_proj_dq/data/repositories/mock_corpus_repository.dart';
 import 'package:my_flutter_proj_dq/data/repositories/mock_telemetry_repository.dart';
@@ -83,6 +84,7 @@ Widget createTestApp({
       ),
     ],
     child: MaterialApp(
+      scrollBehavior: const SynqraScrollBehavior(),
       home:
           home ??
           (startAuthenticated

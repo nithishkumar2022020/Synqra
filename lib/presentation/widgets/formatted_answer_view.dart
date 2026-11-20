@@ -214,6 +214,7 @@ class FormattedAnswerView extends StatelessWidget {
               ],
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Text(
                   code,
                   style: AppTheme.monospace(

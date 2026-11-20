@@ -100,7 +100,9 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
-          physics: const ClampingScrollPhysics(),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           slivers: [
             // Top Bar
             SliverToBoxAdapter(
