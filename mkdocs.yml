@@ -69,6 +69,7 @@ nav:
   - "Application Canvases": canvases.md
   - "Architecture Blueprint": architecture.md
   - "Cognito Authentication": auth.md
+  - "AWS CloudWatch Telemetry": cloudwatch.md
   - "Backend API Contract": api.md
   - "Design System": design-system.md
   - "Getting Started": getting-started.md

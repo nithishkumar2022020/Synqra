@@ -9,7 +9,8 @@
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.7+-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart 3.7+" /></a>
   <a href="docs/design-system.md"><img src="https://img.shields.io/badge/Design-Neo--Brutalist-FF4C29?style=for-the-badge" alt="Neo-Brutalist Archival" /></a>
   <a href="docs/auth.md"><img src="https://img.shields.io/badge/Auth-AWS%20Cognito%20SRP-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" alt="AWS Cognito SRP" /></a>
-  <a href="docs/testing.md"><img src="https://img.shields.io/badge/Tests-57%20Passing-success?style=for-the-badge" alt="57 Passing Tests" /></a>
+  <a href="docs/cloudwatch.md"><img src="https://img.shields.io/badge/Telemetry-AWS%20CloudWatch-FF4F00?style=for-the-badge&logo=amazoncloudwatch&logoColor=white" alt="AWS CloudWatch" /></a>
+  <a href="docs/testing.md"><img src="https://img.shields.io/badge/Tests-68%20Passing-success?style=for-the-badge" alt="68 Passing Tests" /></a>
   <a href="https://nithishkumar2022020.github.io/Synqra/"><img src="https://img.shields.io/badge/Docs-MkDocs%20Material-526CFE?style=for-the-badge&logo=materialformkdocs&logoColor=white" alt="MkDocs Documentation" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge" alt="MIT License" /></a>
 </p>
@@ -27,10 +28,11 @@
 > - [📱 Application Canvases Walkthrough](docs/canvases.md)
 > - [🏗️ Clean Architecture Blueprint & State Management](docs/architecture.md)
 > - [🔐 AWS Cognito Direct SRP Authentication](docs/auth.md)
+> - [📡 AWS CloudWatch Telemetry & Audit Stream](docs/cloudwatch.md)
 > - [🌐 Backend REST & SSE EventStream API Contract](docs/api.md)
 > - [🎨 Neo-Brutalist Design Tokens & Typography](docs/design-system.md)
 > - [🚀 Getting Started & Android Deployment](docs/getting-started.md)
-> - [🧪 Testing Suite & Quality Assurance (57 Tests)](docs/testing.md)
+> - [🧪 Testing Suite & Quality Assurance (68 Tests)](docs/testing.md)
 
 ---
 
@@ -52,6 +54,7 @@ SYNQRA rejects sterile, opaque chatbots in favor of an **archival research instr
 - **🔬 Agentic Thought Timeline**: Surfaces every retrieval phase (*Query Preparation → Embedding Generation → HNSW Traversal → Cross-Encoder Reranking → Grounded Synthesis*).
 - **📂 Multi-Document Scoping**: Touch or slide across document cards in the **Corpus Repository** to restrict vector retrieval to a single PDF or custom subset.
 - **🔐 In-App AWS Cognito SRP Auth**: Direct Secure Remote Password authentication via official AWS Amplify Auth SDK without external browser redirects or webviews.
+- **📡 AWS CloudWatch Dual-Dispatch Telemetry**: Real-time auditing & custom metric streaming (`Synqra/MobileRetrieval`) to AWS CloudWatch Logs (`/synqra/archival-rag`, `ap-southeast-2`) with SigV4 signing and local 60-event ring buffer diagnostics.
 - **🏛️ Archival Neo-Brutalist Aesthetics**: Tactile offset drop shadows, high-contrast borders, warm parchment (`#F5EFE6`) & obsidian nocturne palettes, and monospaced data readouts.
 
 ---
@@ -106,7 +109,7 @@ SYNQRA enforces strict automated test verification covering stream parsers, stat
 # Static code analysis (0 warnings / 0 errors)
 flutter analyze
 
-# Automated test suite (57 passing tests)
+# Automated test suite (68 passing tests)
 flutter test
 ```
 

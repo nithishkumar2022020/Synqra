@@ -15,6 +15,9 @@ class ProfileSettingsRepository implements IProfileSettingsRepository {
   static const _kClearanceLevel = 'rag_pref_clearance_level';
   static const _kIsGuest = 'rag_pref_is_guest';
   static const _kUseOfflineSim = 'rag_pref_use_offline_sim';
+  static const _kCloudWatchLogGroup = 'rag_pref_cw_log_group';
+  static const _kCloudWatchRegion = 'rag_pref_cw_region';
+  static const _kEnableCloudWatch = 'rag_pref_enable_cw';
 
   @override
   Future<ProfileSettings> loadSettings() async {
@@ -57,6 +60,12 @@ class ProfileSettingsRepository implements IProfileSettingsRepository {
         isGuest: prefs.getBool(_kIsGuest) ?? defaults.isGuest,
         useOfflineSimulation:
             prefs.getBool(_kUseOfflineSim) ?? defaults.useOfflineSimulation,
+        cloudWatchLogGroup:
+            prefs.getString(_kCloudWatchLogGroup) ?? defaults.cloudWatchLogGroup,
+        cloudWatchRegion:
+            prefs.getString(_kCloudWatchRegion) ?? defaults.cloudWatchRegion,
+        enableCloudWatch:
+            prefs.getBool(_kEnableCloudWatch) ?? defaults.enableCloudWatch,
       );
     } catch (_) {
       return ProfileSettings.defaults();
@@ -82,6 +91,9 @@ class ProfileSettingsRepository implements IProfileSettingsRepository {
       await prefs.setString(_kClearanceLevel, settings.clearanceLevel);
       await prefs.setBool(_kIsGuest, settings.isGuest);
       await prefs.setBool(_kUseOfflineSim, settings.useOfflineSimulation);
+      await prefs.setString(_kCloudWatchLogGroup, settings.cloudWatchLogGroup);
+      await prefs.setString(_kCloudWatchRegion, settings.cloudWatchRegion);
+      await prefs.setBool(_kEnableCloudWatch, settings.enableCloudWatch);
     } catch (_) {
       // Fallback in test/mock environment without SharedPreferences native binding
     }

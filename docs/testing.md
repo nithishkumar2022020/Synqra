@@ -28,6 +28,7 @@ flutter test
 | `test/citation_parser_test.dart` | Citation Regex Parsing | Identification of `[1]`, `[2]`, `[1, 2]` patterns, text span chunking, and click-to-preview attribution binding. |
 | `test/formatted_answer_test.dart` | Markdown & KaTeX Rendering | Markdown formatting, KaTeX equation parsing, and interactive badge taps. |
 | `test/splash_screen_test.dart` | Kinetic Typewriter Animation | Character-by-character timer, blinking cursor state, `[ SKIP >> ]` bypass trigger, and navigation gate. |
+| `test/cloudwatch_service_test.dart` | AWS CloudWatch Telemetry | JSON payload serialization, metric data points, dynamic stream naming, 60-event in-memory ring buffer, SigV4 PutLogEvents request signing, and disabled state isolation. |
 | `test/widget_test.dart` | End-to-End Widget Shell | 4-canvas navigation container, Archival Clearance Ledger, and User Profile Dossier. |
 
 ---
@@ -35,5 +36,5 @@ flutter test
 ## Quality Metrics
 
 - **Static Analyzer**: `0` issues found via `flutter analyze`.
-- **Automated Tests**: `57` passing tests across unit, repository, provider, and widget suites.
+- **Automated Tests**: `68` passing tests across unit, repository, provider, and widget suites.
 - **Code Formatting**: Fully formatted according to Dart style guide (`dart format .`).

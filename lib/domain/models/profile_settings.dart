@@ -19,6 +19,9 @@ class ProfileSettings {
   final String clearanceLevel;
   final bool isGuest;
   final bool useOfflineSimulation;
+  final String cloudWatchLogGroup;
+  final String cloudWatchRegion;
+  final bool enableCloudWatch;
 
   const ProfileSettings({
     required this.apiKey,
@@ -33,6 +36,9 @@ class ProfileSettings {
     this.clearanceLevel = 'Level-3 Architect',
     this.isGuest = false,
     this.useOfflineSimulation = false,
+    this.cloudWatchLogGroup = '/synqra/archival-rag',
+    this.cloudWatchRegion = 'ap-southeast-2',
+    this.enableCloudWatch = true,
   });
 
   factory ProfileSettings.defaults() {
@@ -49,6 +55,9 @@ class ProfileSettings {
       clearanceLevel: 'Level-3 Architect',
       isGuest: false,
       useOfflineSimulation: false,
+      cloudWatchLogGroup: '/synqra/archival-rag',
+      cloudWatchRegion: 'ap-southeast-2',
+      enableCloudWatch: true,
     );
   }
 
@@ -65,6 +74,9 @@ class ProfileSettings {
     String? clearanceLevel,
     bool? isGuest,
     bool? useOfflineSimulation,
+    String? cloudWatchLogGroup,
+    String? cloudWatchRegion,
+    bool? enableCloudWatch,
   }) {
     return ProfileSettings(
       apiKey: apiKey ?? this.apiKey,
@@ -79,6 +91,9 @@ class ProfileSettings {
       clearanceLevel: clearanceLevel ?? this.clearanceLevel,
       isGuest: isGuest ?? this.isGuest,
       useOfflineSimulation: useOfflineSimulation ?? this.useOfflineSimulation,
+      cloudWatchLogGroup: cloudWatchLogGroup ?? this.cloudWatchLogGroup,
+      cloudWatchRegion: cloudWatchRegion ?? this.cloudWatchRegion,
+      enableCloudWatch: enableCloudWatch ?? this.enableCloudWatch,
     );
   }
 }

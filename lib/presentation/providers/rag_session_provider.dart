@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../../core/services/cloudwatch_service.dart';
 import '../../core/utils/citation_parser.dart';
 import '../../domain/models/citation.dart';
 import '../../domain/models/rag_process_step.dart';
@@ -9,6 +10,7 @@ import '../../domain/repositories/i_rag_stream_repository.dart';
 
 class RagSessionProvider extends ChangeNotifier {
   final IRagStreamRepository _repository;
+  final CloudWatchService? _cloudWatchService;
   StreamSubscription<RagStreamEvent>? _streamSubscription;
 
   String _currentQuery = '';
@@ -24,8 +26,11 @@ class RagSessionProvider extends ChangeNotifier {
   DateTime? _queryStartedAt;
   Duration? _lastDuration;
 
-  RagSessionProvider({required IRagStreamRepository repository})
-    : _repository = repository;
+  RagSessionProvider({
+    required IRagStreamRepository repository,
+    CloudWatchService? cloudWatchService,
+  }) : _repository = repository,
+       _cloudWatchService = cloudWatchService;
 
   String get currentQuery => _currentQuery;
   String get streamedAnswer => _streamedAnswer;
@@ -106,6 +111,18 @@ class RagSessionProvider extends ChangeNotifier {
     _isStreaming = true;
     _isComplete = false;
     notifyListeners();
+
+    _cloudWatchService?.logEvent(
+      level: 'INFO',
+      message: 'Submitted RAG retrieval query',
+      callSign: settings?.callSign ?? 'ARCH-9942',
+      metadata: {
+        'prompt_length': prompt.length,
+        'scope': scopeSummary,
+        'doc_count': normalizedDocIds.length,
+        'endpoint': settings?.sseEndpoint ?? 'default',
+      },
+    );
 
     _streamSubscription = _repository
         .queryStream(
@@ -286,6 +303,17 @@ class RagSessionProvider extends ChangeNotifier {
         _markActiveSteps(ProcessStepState.completed);
         _finishTiming();
         _parsedSegments = CitationParser.parse(_streamedAnswer);
+        final tokenCount = _streamedAnswer.trim().isEmpty
+            ? 0
+            : _streamedAnswer.split(RegExp(r'\s+')).length;
+        _cloudWatchService?.logQuery(
+          prompt: _currentQuery,
+          latencyMs: _lastDuration?.inMilliseconds ??
+              _elapsedSinceStart().inMilliseconds,
+          tokenCount: tokenCount,
+          citationCount: _citations.length,
+          isSuccess: true,
+        );
         notifyListeners();
       case StreamErrorEvent(message: final msg, isInterrupted: _):
         _isStreaming = false;
@@ -294,6 +322,18 @@ class RagSessionProvider extends ChangeNotifier {
         _errorMessage = msg;
         _markActiveSteps(ProcessStepState.failed, detailOverride: msg);
         _finishTiming();
+        final tokenCount = _streamedAnswer.trim().isEmpty
+            ? 0
+            : _streamedAnswer.split(RegExp(r'\s+')).length;
+        _cloudWatchService?.logQuery(
+          prompt: _currentQuery,
+          latencyMs: _lastDuration?.inMilliseconds ??
+              _elapsedSinceStart().inMilliseconds,
+          tokenCount: tokenCount,
+          citationCount: _citations.length,
+          isSuccess: false,
+          error: msg,
+        );
         notifyListeners();
     }
   }
@@ -311,6 +351,15 @@ class RagSessionProvider extends ChangeNotifier {
         detailOverride: 'Stopped by user',
       );
       _finishTiming();
+      _cloudWatchService?.logEvent(
+        level: 'WARN',
+        message: 'RAG query stream cancelled by operator',
+        metadata: {
+          'prompt': _currentQuery,
+          'elapsed_ms': _lastDuration?.inMilliseconds ??
+              _elapsedSinceStart().inMilliseconds,
+        },
+      );
       notifyListeners();
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../core/services/cloudwatch_service.dart';
 import '../../data/repositories/cognito_auth_repository.dart';
 import '../../domain/models/cognito_auth.dart';
 import '../../domain/models/profile_settings.dart';
@@ -8,6 +9,7 @@ import '../../domain/repositories/i_profile_settings_repository.dart';
 class SettingsProvider extends ChangeNotifier {
   final IProfileSettingsRepository _repository;
   final ICognitoAuthRepository _cognitoRepository;
+  final CloudWatchService? _cloudWatchService;
 
   ProfileSettings _settings = ProfileSettings.defaults();
   CognitoConfig _cognitoConfig = CognitoConfig.defaults();
@@ -22,8 +24,10 @@ class SettingsProvider extends ChangeNotifier {
   SettingsProvider({
     required IProfileSettingsRepository repository,
     ICognitoAuthRepository? cognitoRepository,
+    CloudWatchService? cloudWatchService,
   }) : _repository = repository,
-       _cognitoRepository = cognitoRepository ?? CognitoAuthRepository() {
+       _cognitoRepository = cognitoRepository ?? CognitoAuthRepository(),
+       _cloudWatchService = cloudWatchService {
     _load();
   }
 
@@ -150,6 +154,9 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> _load() async {
     _settings = await _repository.loadSettings();
     _cognitoConfig = await _cognitoRepository.loadConfig();
+    if (_cloudWatchService != null) {
+      _cloudWatchService.isEnabled = _settings.enableCloudWatch;
+    }
 
     try {
       final savedSession = await _cognitoRepository.loadSavedSession();
@@ -346,6 +353,12 @@ class SettingsProvider extends ChangeNotifier {
         clearanceLevel: session.clearanceLevel ?? _settings.clearanceLevel,
       );
       await updateSettings(updated);
+      _cloudWatchService?.logAuth(
+        action: 'SIGN_IN',
+        callSign: resolvedCallSign,
+        isSuccess: true,
+        detail: 'Clearance: ${session.clearanceLevel ?? _settings.clearanceLevel}',
+      );
       _isAuthenticating = false;
       notifyListeners();
       return true;
@@ -358,6 +371,12 @@ class SettingsProvider extends ChangeNotifier {
       } else {
         _authError = e.toString().replaceFirst('CognitoAuthException: ', '');
       }
+      _cloudWatchService?.logAuth(
+        action: 'SIGN_IN',
+        callSign: callSign.trim(),
+        isSuccess: false,
+        detail: _authError,
+      );
       notifyListeners();
       return false;
     }
@@ -523,6 +542,11 @@ class SettingsProvider extends ChangeNotifier {
       apiKey: '',
     );
     await updateSettings(updated);
+    _cloudWatchService?.logAuth(
+      action: 'GUEST_ENTRY',
+      callSign: 'GUEST-OBSERVER',
+      isSuccess: true,
+    );
   }
 
   Future<bool> signInWithManagedLogin() async {
@@ -563,12 +587,23 @@ class SettingsProvider extends ChangeNotifier {
         clearanceLevel: session.clearanceLevel ?? _settings.clearanceLevel,
       );
       await updateSettings(updated);
+      _cloudWatchService?.logAuth(
+        action: 'MANAGED_LOGIN_SUCCESS',
+        callSign: resolvedCallSign,
+        isSuccess: true,
+      );
       _isAuthenticating = false;
       notifyListeners();
       return true;
     } catch (e) {
       _isAuthenticating = false;
       _authError = e.toString().replaceFirst('CognitoAuthException: ', '');
+      _cloudWatchService?.logAuth(
+        action: 'MANAGED_LOGIN_FAILURE',
+        callSign: _settings.callSign,
+        isSuccess: false,
+        detail: _authError,
+      );
       notifyListeners();
       return false;
     }
@@ -587,6 +622,11 @@ class SettingsProvider extends ChangeNotifier {
       apiKey: '',
     );
     await updateSettings(updated);
+    _cloudWatchService?.logAuth(
+      action: 'SIGN_OUT',
+      callSign: _settings.callSign,
+      isSuccess: true,
+    );
   }
 
   Future<void> signOut({bool clearBrowserSession = false}) async {
@@ -598,6 +638,27 @@ class SettingsProvider extends ChangeNotifier {
       isAuthenticated: false,
       isGuest: false,
       apiKey: '',
+    );
+    await updateSettings(updated);
+    _cloudWatchService?.logAuth(
+      action: 'SIGN_OUT',
+      callSign: _settings.callSign,
+      isSuccess: true,
+    );
+  }
+
+  Future<void> setCloudWatchEnabled(bool enabled) async {
+    final updated = _settings.copyWith(enableCloudWatch: enabled);
+    if (_cloudWatchService != null) {
+      _cloudWatchService.isEnabled = enabled;
+    }
+    await updateSettings(updated);
+  }
+
+  Future<void> setCloudWatchConfig({String? logGroup, String? region}) async {
+    final updated = _settings.copyWith(
+      cloudWatchLogGroup: logGroup ?? _settings.cloudWatchLogGroup,
+      cloudWatchRegion: region ?? _settings.cloudWatchRegion,
     );
     await updateSettings(updated);
   }

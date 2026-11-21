@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/services/cloudwatch_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/smooth_page_route.dart';
 import '../../data/repositories/mock_graph_repository.dart';
@@ -970,6 +971,392 @@ class _GraphTelemetryScreenState extends State<GraphTelemetryScreen>
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // AWS CloudWatch Telemetry & Audit Stream Card
+                  Text(
+                    'AWS CLOUDWATCH TELEMETRY & AUDIT STREAM',
+                    style: AppTheme.monospace(
+                      color: mutedText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Consumer2<TelemetryProvider, SettingsProvider>(
+                    builder: (context, telemProv, settingsProv, _) {
+                      final cwState = telemProv.cloudWatchState;
+                      final isCwActive = cwState == CloudWatchState.active;
+                      final isBuffering = cwState == CloudWatchState.buffering;
+                      final isCwEnabled = settingsProv.settings.enableCloudWatch;
+                      final recentLogs = telemProv.recentCloudWatchLogs;
+
+                      final stateLabel = !isCwEnabled
+                          ? 'DISABLED'
+                          : (isCwActive
+                              ? 'ACTIVE // DUAL-DISPATCH'
+                              : (isBuffering
+                                  ? 'BUFFERING // LOCAL AUDIT RING'
+                                  : 'ERROR / FAULT'));
+
+                      final badgeColor = !isCwEnabled
+                          ? mutedText
+                          : (isCwActive
+                              ? (isDark
+                                  ? AppTheme.nocturneSage
+                                  : AppTheme.parchmentSage)
+                              : (isBuffering ? vermilion : vermilion));
+
+                      return BrutalistContainer(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: badgeColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'CLOUDWATCH DISPATCH STATUS',
+                                      style: AppTheme.monospace(
+                                        color: mutedText,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  color: badgeColor.withValues(alpha: 0.18),
+                                  child: Text(
+                                    stateLabel,
+                                    style: AppTheme.monospace(
+                                      color: badgeColor,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Details grid
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'LOG GROUP',
+                                        style: AppTheme.monospace(
+                                          color: mutedText,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        telemProv.cloudWatchLogGroup,
+                                        style: AppTheme.monospace(
+                                          color: textColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'AWS REGION',
+                                        style: AppTheme.monospace(
+                                          color: mutedText,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${telemProv.cloudWatchRegion} (Sydney)',
+                                        style: AppTheme.monospace(
+                                          color: textColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'METRICS NAMESPACE',
+                                        style: AppTheme.monospace(
+                                          color: mutedText,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Synqra/MobileRetrieval',
+                                        style: AppTheme.monospace(
+                                          color: textColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'RECORDED EVENTS',
+                                        style: AppTheme.monospace(
+                                          color: mutedText,
+                                          fontSize: 9,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${telemProv.cloudWatchEventsCount} events',
+                                        style: AppTheme.monospace(
+                                          color: vermilion,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'ACTIVE LOG STREAM',
+                              style: AppTheme.monospace(
+                                color: mutedText,
+                                fontSize: 9,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: surfaceColor,
+                                border:
+                                    Border.all(color: borderColor, width: 1),
+                              ),
+                              child: Text(
+                                telemProv.cloudWatchService?.getStreamName(
+                                      settingsProv.displayCallSign,
+                                    ) ??
+                                    'operator-${settingsProv.displayCallSign}/today',
+                                style: AppTheme.monospace(
+                                  color: textColor,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Recent audit event ring buffer ticker
+                            Text(
+                              'RECENT CLOUDWATCH AUDIT LOGS (${recentLogs.length} IN BUFFER)',
+                              style: AppTheme.monospace(
+                                color: mutedText,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              constraints:
+                                  const BoxConstraints(maxHeight: 160),
+                              decoration: BoxDecoration(
+                                color: surfaceColor,
+                                border:
+                                    Border.all(color: borderColor, width: 1),
+                              ),
+                              child: recentLogs.isEmpty
+                                  ? Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Text(
+                                          'No audit events recorded yet.\nRun a query or tap "DISPATCH AUDIT PULSE".',
+                                          textAlign: TextAlign.center,
+                                          style: AppTheme.monospace(
+                                            color: mutedText,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      shrinkWrap: true,
+                                      padding: const EdgeInsets.all(8),
+                                      itemCount:
+                                          recentLogs.length > 10
+                                              ? 10
+                                              : recentLogs.length,
+                                      separatorBuilder: (_, _) =>
+                                          Divider(color: borderColor, height: 8),
+                                      itemBuilder: (context, idx) {
+                                        final record = recentLogs[idx];
+                                        final isErr = record.level == 'ERROR';
+                                        final isWarn = record.level == 'WARN';
+                                        final lvlColor = isErr
+                                            ? vermilion
+                                            : (isWarn
+                                                ? (isDark
+                                                    ? AppTheme.nocturneAmber
+                                                    : AppTheme.parchmentAmber)
+                                                : (isDark
+                                                    ? AppTheme.nocturneSage
+                                                    : AppTheme.parchmentSage));
+                                        return Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '[${record.level}]',
+                                              style: AppTheme.monospace(
+                                                color: lvlColor,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                record.message,
+                                                maxLines: 2,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: AppTheme.monospace(
+                                                  color: textColor,
+                                                  fontSize: 9,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${record.timestamp.hour.toString().padLeft(2, '0')}:${record.timestamp.minute.toString().padLeft(2, '0')}:${record.timestamp.second.toString().padLeft(2, '0')}',
+                                              style: AppTheme.monospace(
+                                                color: mutedText,
+                                                fontSize: 8,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // CloudWatch Toggle & Action Pulse
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'ENABLE CLOUDWATCH TELEMETRY',
+                                  style: AppTheme.monospace(
+                                    color: textColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Switch(
+                                  value: isCwEnabled,
+                                  activeThumbColor: vermilion,
+                                  onChanged: (val) {
+                                    settingsProv.setCloudWatchEnabled(val);
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              key: const Key('cloudwatch_ping_btn'),
+                              onTap: () async {
+                                final cw = telemProv.cloudWatchService;
+                                if (cw != null) {
+                                  await cw.logEvent(
+                                    level: 'INFO',
+                                    message:
+                                        'Manual operator audit pulse dispatched from Diagnostics Canvas',
+                                    callSign: settingsProv.displayCallSign,
+                                    metadata: {
+                                      'operator': settingsProv.displayName,
+                                      'source': 'DiagnosticsCanvas',
+                                      'region': telemProv.cloudWatchRegion,
+                                    },
+                                  );
+                                  await cw.putMetric(
+                                    metricName: 'AuditPulsePing',
+                                    value: 1.0,
+                                    unit: 'Count',
+                                    dimensions: {
+                                      'Operator':
+                                          settingsProv.displayCallSign,
+                                    },
+                                  );
+                                  await telemProv.fetchLatestTelemetry();
+                                }
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'CloudWatch audit pulse dispatched to ap-southeast-2.',
+                                        style: AppTheme.monospace(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      backgroundColor: vermilion,
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: vermilion, width: 2),
+                                  color: surfaceColor,
+                                ),
+                                child: Text(
+                                  '⚡ DISPATCH CLOUDWATCH AUDIT PULSE',
+                                  style: AppTheme.monospace(
+                                    color: vermilion,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 80),

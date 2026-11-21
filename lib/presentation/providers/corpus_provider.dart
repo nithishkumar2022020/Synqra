@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/cloudwatch_service.dart';
 import '../../domain/models/corpus.dart';
 import '../../domain/repositories/i_corpus_repository.dart';
 
@@ -7,6 +8,7 @@ class CorpusProvider extends ChangeNotifier {
   static const _kSemanticChunkingPrefKey = 'rag_pref_semantic_chunking';
 
   final ICorpusRepository _repository;
+  final CloudWatchService? _cloudWatchService;
   List<DocumentEntry> _documents = [];
   final Set<String> _selectedDocumentIds = {};
   bool _isLoading = false;
@@ -14,8 +16,11 @@ class CorpusProvider extends ChangeNotifier {
   bool _useSemanticChunking = true;
   String? _error;
 
-  CorpusProvider({required ICorpusRepository repository})
-    : _repository = repository {
+  CorpusProvider({
+    required ICorpusRepository repository,
+    CloudWatchService? cloudWatchService,
+  })  : _repository = repository,
+        _cloudWatchService = cloudWatchService {
     loadManifest();
   }
 
@@ -208,6 +213,12 @@ class CorpusProvider extends ChangeNotifier {
               );
               _documents[targetIndex] = updated;
               await _repository.updateDocument(updated);
+              _cloudWatchService?.logIngest(
+                filename: existing.filename,
+                chunkCount: updated.chunkCount,
+                strategy: _useSemanticChunking ? 'SEMANTIC' : 'FIXED',
+                isSuccess: true,
+              );
               notifyListeners();
               break;
             } else if (rawStatus == 'failed') {
@@ -221,6 +232,13 @@ class CorpusProvider extends ChangeNotifier {
               _documents[targetIndex] = updated;
               _error = detail;
               await _repository.updateDocument(updated);
+              _cloudWatchService?.logIngest(
+                filename: existing.filename,
+                chunkCount: 0,
+                strategy: _useSemanticChunking ? 'SEMANTIC' : 'FIXED',
+                isSuccess: false,
+                error: detail,
+              );
               notifyListeners();
               break;
             } else if (rawStatus == 'processing') {
@@ -310,6 +328,13 @@ class CorpusProvider extends ChangeNotifier {
         );
       }
       _documents = [doc, ..._documents.where((d) => d.id != doc.id)];
+      _cloudWatchService?.logIngest(
+        filename: filename,
+        chunkCount: doc.chunkCount,
+        strategy:
+            (semanticChunking ?? _useSemanticChunking) ? 'SEMANTIC' : 'FIXED',
+        isSuccess: doc.status != IngestionStatus.failed,
+      );
       notifyListeners();
 
       if (doc.jobId != null && doc.status == IngestionStatus.indexing) {
@@ -323,6 +348,14 @@ class CorpusProvider extends ChangeNotifier {
       return doc;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
+      _cloudWatchService?.logIngest(
+        filename: filename,
+        chunkCount: 0,
+        strategy:
+            (semanticChunking ?? _useSemanticChunking) ? 'SEMANTIC' : 'FIXED',
+        isSuccess: false,
+        error: _error,
+      );
       return null;
     } finally {
       _isUploading = false;

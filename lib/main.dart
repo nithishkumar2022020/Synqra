@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'core/services/cloudwatch_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/corpus_repository.dart';
 import 'data/repositories/mock_telemetry_repository.dart';
@@ -30,6 +31,7 @@ void main() {
     return Firebase.app();
   });
 
+  final CloudWatchService cloudWatchService = CloudWatchService();
   final IRagStreamRepository ragStreamRepo = RagStreamRepository();
   final ICorpusRepository corpusRepo = CorpusRepository();
   final ITelemetryRepository telemetryRepo = MockTelemetryRepository();
@@ -39,16 +41,28 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(repository: settingsRepo),
+          create: (_) => SettingsProvider(
+            repository: settingsRepo,
+            cloudWatchService: cloudWatchService,
+          ),
         ),
         ChangeNotifierProvider(
-          create: (_) => RagSessionProvider(repository: ragStreamRepo),
+          create: (_) => RagSessionProvider(
+            repository: ragStreamRepo,
+            cloudWatchService: cloudWatchService,
+          ),
         ),
         ChangeNotifierProvider(
-          create: (_) => CorpusProvider(repository: corpusRepo),
+          create: (_) => CorpusProvider(
+            repository: corpusRepo,
+            cloudWatchService: cloudWatchService,
+          ),
         ),
         ChangeNotifierProvider(
-          create: (_) => TelemetryProvider(repository: telemetryRepo),
+          create: (_) => TelemetryProvider(
+            repository: telemetryRepo,
+            cloudWatchService: cloudWatchService,
+          ),
         ),
       ],
       child: const RagApplication(),

@@ -122,7 +122,7 @@ packages:
     source: hosted
     version: "2.13.0"
   aws_common:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: aws_common
       sha256: "89fcf501bbae7ee7ee1fcf114aeda27c22e33783bffd103d68031c14cc5d7752"
@@ -130,7 +130,7 @@ packages:
     source: hosted
     version: "0.7.16"
   aws_signature_v4:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: aws_signature_v4
       sha256: "83d3fd9402f2a4145ec96b972da779d8658f9505cdd52888d6cbcc2551f5ad88"

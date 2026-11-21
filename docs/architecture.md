@@ -63,6 +63,7 @@ The presentation layer is built with Flutter declarative widgets coupled with `C
   - Interacts with `CognitoAuthRepository` to maintain live authentication state.
 - **`TelemetryProvider`**:
   - Polling engine collecting retrieval latency metrics, knowledge graph node topologies, and memory health.
+  - Exposes AWS CloudWatch operational state, recent audit buffer, and metric dispatch triggers.
 
 ---
 
@@ -107,6 +108,7 @@ The data layer handles concrete networking, parsing, and storage implementations
 
 ## 4. Core Layer & Physics
 
+- **`CloudWatchService`**: Core telemetry and audit service targeting AWS CloudWatch Logs (`/synqra/archival-rag`) and Metrics (`Synqra/MobileRetrieval`) in `ap-southeast-2`. Implements dynamic AWS SigV4 request signing and maintains a 60-event in-memory ring buffer for offline resilience.
 - **`AppTheme`**: Centralized design token system providing Parchment (Light) and Nocturne (Dark) themes with custom typography and hard-edge brutalist shadows.
 - **`CitationParser`**: High-performance regex parser that tokenizes answer strings, extracts `[1]`, `[2]`, `[1, 2]` patterns, and produces formatted spans with interactive badge triggers.
 - **`SmoothPageRoute`**: Physics-based transitional routing implementing `Curves.easeInOutCubic` (260ms duration) with slide-and-fade physics for tactile transitions across canvases.
