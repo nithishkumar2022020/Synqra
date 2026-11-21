@@ -1,0 +1,69 @@
+:root {
+  --md-primary-fg-color: #FF4C29;
+  --md-primary-fg-color--light: #FF5C38;
+  --md-primary-fg-color--dark: #D43817;
+  --md-accent-fg-color: #FF4C29;
+}
+
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #FAF6F0;
+  --md-default-fg-color: #1A1918;
+  --md-default-fg-color--light: #3D3833;
+  --md-default-fg-color--lighter: #6B655E;
+  --md-code-bg-color: #EFE9DE;
+  --md-code-fg-color: #1A1918;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #121110;
+  --md-default-fg-color: #F2ECE4;
+  --md-default-fg-color--light: #D4CDC5;
+  --md-default-fg-color--lighter: #9E978F;
+  --md-code-bg-color: #1C1A18;
+  --md-code-fg-color: #F2ECE4;
+}
+
+/* Archival Brutalist Styling for Cards and Previews */
+.screenshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.2rem;
+  margin: 1.5rem 0;
+}
+
+.screenshot-card {
+  border: 1.5px solid rgba(26, 25, 24, 0.15);
+  border-radius: 8px;
+  background-color: var(--md-default-bg-color);
+  padding: 0.6rem;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-md-color-scheme="slate"] .screenshot-card {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.screenshot-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.screenshot-card img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 0.6rem;
+}
+
+.screenshot-card h4 {
+  margin: 0.3rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.screenshot-card p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--md-default-fg-color--lighter);
+}
